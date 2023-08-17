@@ -20,10 +20,10 @@ pub struct DepositForBurn {
     pub burn_token: Pubkey,
     pub amount: u64,
     pub depositor: Pubkey,
-    pub mint_recipient: Vec<u8>,
+    pub mint_recipient: Pubkey,
     pub destination_domain: u32,
-    pub destination_token_messenger: Vec<u8>,
-    pub destination_caller: Vec<u8>,
+    pub destination_token_messenger: Pubkey,
+    pub destination_caller: Pubkey,
 }
 
 #[event]
@@ -36,11 +36,11 @@ pub struct MintAndWithdraw {
 #[event]
 pub struct RemoteTokenMessengerAdded {
     pub domain: Pubkey,
-    pub token_messenger: Vec<u8>,
+    pub token_messenger: Pubkey,
 }
 
 #[event]
 pub struct RemoteTokenMessengerRemoved {
     pub domain: Pubkey,
-    pub token_messenger: Vec<u8>,
+    pub token_messenger: Pubkey,
 }

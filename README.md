@@ -19,9 +19,15 @@ The Cross-Chain Transfer Protocol (CCTP) is an on-chain utility that facilitates
 
 ## Deployments
 
-**Devnet**: CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3
+| Devnet               |                                              |
+| -------------------- | -------------------------------------------- |
+| MessageTransmitter   | CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd |
+| TokenMessengerMinter | CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3 |
 
-**Mainnet**: [TBD]
+| Mainnet              |       |
+| -------------------- | ----- |
+| MessageTransmitter   | [TBD] |
+| TokenMessengerMinter | [TBD] |
 
 ## Contract Design
 
@@ -35,7 +41,7 @@ CCTP protocol on EVM chains consists of three contracts:
 - **TokenMessenger**: Entrypoint for cross-chain token transfer. Routes messages to burn a token on source chain, and mint it on destination chain.
 - **TokenMinter**: Responsible for minting and burning tokens. Contains chain-specific settings used by minters and burners.
 
-Because TokenMessengers and TokenMinter can be deployed permissionlessly by ecosystem teams to leverage CCTP transfers for their custom tokens, on Solana, the CCTP protocol implementation is split into two programs: MessageTransmitter and TokenMessenger. Where TokenMessenger encapsulates the functionality of both TokenMessenger and TokenMinter contracts. To ensure alignment with EVM contracts' logic and state and to facilitate future upgrades and maintenance, the code and state of Solana programs reflect the EVM counterparts as closely as possible.
+Because TokenMessengers and TokenMinter can be deployed permissionlessly by ecosystem teams to leverage CCTP transfers for their custom tokens, on Solana, the CCTP protocol implementation is split into two programs: MessageTransmitter and TokenMessengerMinter. Where TokenMessengerMinter encapsulates the functionality of both TokenMessenger and TokenMinter contracts. To ensure alignment with EVM contracts' logic and state and to facilitate future upgrades and maintenance, the code and state of Solana programs reflect the EVM counterparts as closely as possible.
 
 Solana CCTP programs are written in Rust and leverages Anchor framework that makes it easier and more efficient for developers to create, deploy, and manage smart contracts on the Solana blockchain. Along with the program, an IDL (Interface Description Language) can be generated and deployed on-chain making it much easier for developers to interact with the CCTP program. See [Deployment guide](#deployment-guide) for more details.
 
@@ -51,12 +57,12 @@ To facilitate more efficient indexing and enable the rebuilding of message histo
 
 Initialize MessageTransmitter. This operation needs to be performed prior to using any other instructions. During the initialization, authorities are set to the upgrade authority.
 
-| Parameter          | Type | Description                            |
-| ------------------ | :--: | -------------------------------------- |
-| localDomain        | u32  | Solana domain id                       |
-| attester           | u32  | Attester to enable                     |
-| maxMessageBodySize | u64  | Maximum size of message body, in bytes |
-| version            | u32  | Message Format version                 |
+| Parameter          |   Type   | Description                            |
+| ------------------ | :------: | -------------------------------------- |
+| localDomain        |   u32    | Solana domain id                       |
+| attester           | [u8; 20] | Attester to enable                     |
+| maxMessageBodySize |   u64    | Maximum size of message body, in bytes |
+| version            |   u32    | Message Format version                 |
 
 `transferOwnership`
 
@@ -108,7 +114,7 @@ Send a message to the destination domain and recipient. Emits a MessageSent even
 | Parameter         |   Type   | Description                                             |
 | ----------------- | :------: | ------------------------------------------------------- |
 | destinationDomain |   u32    | Destination domain identifier                           |
-| recipient         | Vec\<u8> | Address to handle message body on destination domain    |
+| recipient         |  Pubkey  | Address to handle message body on destination domain    |
 | messageBody       | Vec\<u8> | Application-specific message to be handled by recipient |
 
 `sendMessageWithCaller`
@@ -118,20 +124,20 @@ Send a message to the destination domain and recipient, for a specified destinat
 | Parameter         |   Type   | Description                                             |
 | ----------------- | :------: | ------------------------------------------------------- |
 | destinationDomain |   u32    | Destination domain identifier                           |
-| recipient         | Vec\<u8> | Address to handle message body on destination domain    |
-| destinationCaller | Vec\<u8> | Caller on the destination domain                        |
+| recipient         |  Pubkey  | Address to handle message body on destination domain    |
+| destinationCaller |  Pubkey  | Caller on the destination domain                        |
 | messageBody       | Vec\<u8> | Application-specific message to be handled by recipient |
 
 `replaceMessage`
 
 Replace a message with a new message body and/or destination caller.
 
-| Parameter            |       Type       | Description                                                                          |
-| -------------------- | :--------------: | ------------------------------------------------------------------------------------ |
-| originalMessage      |     Vec\<u8>     | Original message to replace                                                          |
-| originalAttestation  |     Vec\<u8>     | Attestation of originalMessage                                                       |
-| newMessageBody       |     Vec\<u8>     | New message body of replaced message                                                 |
-| newDestinationCaller | Option<Vec\<u8>> | The new destination caller, which may be the same as the original destination caller |
+| Parameter            |   Type   | Description                                                                          |
+| -------------------- | :------: | ------------------------------------------------------------------------------------ |
+| originalMessage      | Vec\<u8> | Original message to replace                                                          |
+| originalAttestation  | Vec\<u8> | Attestation of originalMessage                                                       |
+| newMessageBody       | Vec\<u8> | New message body of replaced message                                                 |
+| newDestinationCaller | Vec\<u8> | The new destination caller, which may be the same as the original destination caller |
 
 `setSignatureThreshold`
 
@@ -145,17 +151,17 @@ Set the threshold of signatures required to attest to a message.
 
 Enable an attester.
 
-| Parameter   |  Type  | Description        |
-| ----------- | :----: | ------------------ |
-| newAttester | Pubkey | Attester to enable |
+| Parameter   |   Type   | Description        |
+| ----------- | :------: | ------------------ |
+| newAttester | [u8; 20] | Attester to enable |
 
 `disableAttester`
 
 Disable an attester.
 
-| Parameter |  Type  | Description         |
-| --------- | :----: | ------------------- |
-| attester  | Pubkey | Attester to disable |
+| Parameter |   Type   | Description         |
+| --------- | :------: | ------------------- |
+| attester  | [u8; 20] | Attester to disable |
 
 `setMaxMessageBodySize`
 
@@ -189,28 +195,29 @@ Resume MessageTransmitter.
 
 Stores MessageTransmitter configuration and next available nonce.
 
-| Field              |     Type     | Description                                             |
-| ------------------ | :----------: | ------------------------------------------------------- |
-| owner              |    Pubkey    | Main authority of the program                           |
-| pendingOwner       |    Pubkey    | New authority that needs to be accepted                 |
-| attesterManager    |    Pubkey    | Attester Manager of the program                         |
-| pauser             |    Pubkey    | Pause / unpause authority                               |
-| paused             |     bool     | Specifies whether MessageTransmitter is paused          |
-| localDomain        |     u32      | Solana domain id                                        |
-| version            |     u32      | Message Format version                                  |
-| signatureThreshold |     u32      | Threshold of signatures required to attest to a message |
-| enabledAttesters   | Vec\<Pubkey> | Enabled attesters (message signers)                     |
-| maxMessageBodySize |     u64      | Maximum size of message body, in bytes                  |
-| nextAvailableNonce |     u64      | Next available nonce from this source domain            |
+| Field              |      Type      | Description                                             |
+| ------------------ | :------------: | ------------------------------------------------------- |
+| owner              |     Pubkey     | Main authority of the program                           |
+| pendingOwner       |     Pubkey     | New authority that needs to be accepted                 |
+| attesterManager    |     Pubkey     | Attester Manager of the program                         |
+| pauser             |     Pubkey     | Pause / unpause authority                               |
+| paused             |      bool      | Specifies whether MessageTransmitter is paused          |
+| localDomain        |      u32       | Solana domain id                                        |
+| version            |      u32       | Message Format version                                  |
+| signatureThreshold |      u32       | Threshold of signatures required to attest to a message |
+| enabledAttesters   | Vec\<[u8; 20]> | Enabled attesters (message signers)                     |
+| maxMessageBodySize |      u64       | Maximum size of message body, in bytes                  |
+| nextAvailableNonce |      u64       | Next available nonce from this source domain            |
 
-`usedNonces`
+`UsedNonces`
 
 On-chain account that stores used nonces.
 
-| Field        |    Type    | Description      |
-| ------------ | :--------: | ---------------- |
-| remoteDomain |    u32     | Remote domain id |
-| usedNonces   | [u64; 100] | Used nonces      |
+| Field        |    Type     | Description                           |
+| ------------ | :---------: | ------------------------------------- |
+| remoteDomain |     u32     | Remote domain id                      |
+| firstNonce   |     u64     | First nonce in the usedNonces array   |
+| usedNonces   | [bool; 500] | Flags indicating if the nonce is used |
 
 ### **Events**
 
@@ -218,30 +225,30 @@ On-chain account that stores used nonces.
 
 `OwnershipTransferStarted`
 
-|     Field     |  Type  | Description    |
-| :-----------: | :----: | -------------- |
+| Field         |  Type  | Description    |
+| ------------- | :----: | -------------- |
 | previousOwner | Pubkey | Previous owner |
-|   newOwner    | Pubkey | New owner      |
+| newOwner      | Pubkey | New owner      |
 
 `OwnershipTransferred`
 
-|     Field     |  Type  | Description    |
-| :-----------: | :----: | -------------- |
+| Field         |  Type  | Description    |
+| ------------- | :----: | -------------- |
 | previousOwner | Pubkey | Previous owner |
-|   newOwner    | Pubkey | New owner      |
+| newOwner      | Pubkey | New owner      |
 
 `PauserChanged`
 
-|   Field    |  Type  | Description |
-| :--------: | :----: | ----------- |
+| Field      |  Type  | Description |
+| ---------- | :----: | ----------- |
 | newAddress | Pubkey | New pauser  |
 
 `AttesterManagerUpdated`
 
-|          Field          |  Type  | Description              |
-| :---------------------: | :----: | ------------------------ |
+| Field                   |  Type  | Description              |
+| ----------------------- | :----: | ------------------------ |
 | previousAttesterManager | Pubkey | Previous AttesterManager |
-|   newAttesterManager    | Pubkey | New AttesterManager      |
+| newAttesterManager      | Pubkey | New AttesterManager      |
 
 `MessageSent`
 
@@ -255,20 +262,20 @@ Emitted when a new message is dispatched.
 
 Emitted when a new message is received.
 
-|    Field     |   Type   | Description                                                 |
-| :----------: | :------: | ----------------------------------------------------------- |
-|    caller    |  Pubkey  | Authorized caller of receiveMessage() on destination domain |
+| Field        |   Type   | Description                                                 |
+| ------------ | :------: | ----------------------------------------------------------- |
+| caller       |  Pubkey  | Authorized caller of receiveMessage() on destination domain |
 | sourceDomain |   u32    | The source domain this message originated from              |
-|    nonce     |   u64    | Unique message nonce                                        |
-|    sender    | Vec\<u8> | The sender of this message                                  |
+| nonce        |   u64    | Unique message nonce                                        |
+| sender       |  Pubkey  | The sender of this message                                  |
 | messageBody  | Vec\<u8> | Raw bytes of message                                        |
 
 `SignatureThresholdUpdated`
 
 Emitted when threshold number of attestations (m in m/n multisig) is updated.
 
-|         Field         | Type | Description             |
-| :-------------------: | :--: | ----------------------- |
+| Field                 | Type | Description             |
+| --------------------- | :--: | ----------------------- |
 | oldSignatureThreshold | u32  | Old signature threshold |
 | newSignatureThreshold | u32  | New signature threshold |
 
@@ -276,24 +283,24 @@ Emitted when threshold number of attestations (m in m/n multisig) is updated.
 
 Emitted when an attester is enabled.
 
-|  Field   |  Type  | Description            |
-| :------: | :----: | ---------------------- |
-| attester | Pubkey | Newly enabled attester |
+| Field    |   Type   | Description            |
+| -------- | :------: | ---------------------- |
+| attester | [u8; 20] | Newly enabled attester |
 
 `AttesterDisabled`
 
 Emitted when an attester is disabled.
 
-|  Field   |  Type  | Description             |
-| :------: | :----: | ----------------------- |
-| attester | Pubkey | Newly disabled attester |
+| Field    |   Type   | Description             |
+| -------- | :------: | ----------------------- |
+| attester | [u8; 20] | Newly disabled attester |
 
 `MaxMessageBodySizeUpdated`
 
 Emitted when max message body size is updated.
 
-|         Field         | Type | Description                             |
-| :-------------------: | :--: | --------------------------------------- |
+| Field                 | Type | Description                             |
+| --------------------- | :--: | --------------------------------------- |
 | newMaxMessageBodySize | u64  | New maximum message body size, in bytes |
 
 `Pause`
@@ -301,7 +308,7 @@ Emitted when max message body size is updated.
 Emitted when MessageTransmitter is paused.
 
 | Field | Type | Description |
-| :---: | :--: | ----------- |
+| ----- | :--: | ----------- |
 | None  |      |             |
 
 `Unpause`
@@ -309,7 +316,7 @@ Emitted when MessageTransmitter is paused.
 Emitted when MessageTransmitter is resumed.
 
 | Field | Type | Description |
-| :---: | :--: | ----------- |
+| ----- | :--: | ----------- |
 | None  |      |             |
 
 ## TokenMessenger Module
@@ -348,22 +355,22 @@ Serves as a safety net after the authority has been changed. If an address has b
 
 Deposit and burn tokens from sender to be minted on destination domain. Minted tokens will be transferred to mintRecipient.
 
-| Parameter         |   Type   | Description                                     |
-| ----------------- | :------: | ----------------------------------------------- |
-| amount            |   u64    | Amount of tokens to deposit and burn            |
-| destinationDomain |   u32    | Destination domain identifier                   |
-| mintRecipient     | Vec\<u8> | Address of mint recipient on destination domain |
+| Parameter         |  Type  | Description                                     |
+| ----------------- | :----: | ----------------------------------------------- |
+| amount            |  u64   | Amount of tokens to deposit and burn            |
+| destinationDomain |  u32   | Destination domain identifier                   |
+| mintRecipient     | Pubkey | Address of mint recipient on destination domain |
 
 `depositForBurnWithCaller`
 
 Deposit and burn tokens from sender to be minted on destination domain. Minted tokens will be transferred to mintRecipient.
 
-| Parameter         |   Type   | Description                                     |
-| ----------------- | :------: | ----------------------------------------------- |
-| amount            |   u64    | Amount of tokens to deposit and burn            |
-| destinationDomain |   u32    | Destination domain identifier                   |
-| mintRecipient     | Vec\<u8> | Address of mint recipient on destination domain |
-| destinationCaller | Vec\<u8> | Caller on the destination domain                |
+| Parameter         |  Type  | Description                                     |
+| ----------------- | :----: | ----------------------------------------------- |
+| amount            |  u64   | Amount of tokens to deposit and burn            |
+| destinationDomain |  u32   | Destination domain identifier                   |
+| mintRecipient     | Pubkey | Address of mint recipient on destination domain |
+| destinationCaller | Pubkey | Caller on the destination domain                |
 
 `replaceDepositForBurn`
 
@@ -371,10 +378,10 @@ Replace a BurnMessage to change the mint recipient and/or destination caller. Al
 
 This is useful in cases where the user specified an incorrect address and has no way to safely mint the previously burned tokens.
 
-| Parameter            |       Type        | Description                                     |
-| -------------------- | :---------------: | ----------------------------------------------- |
-| newMintRecipient     | Option\<Vec\<u8>> | Address of mint recipient on destination domain |
-| newDestinationCaller | Option\<Vec\<u8>> | Caller on the destination domain                |
+| Parameter            |  Type  | Description                                     |
+| -------------------- | :----: | ----------------------------------------------- |
+| newMintRecipient     | Pubkey | Address of mint recipient on destination domain |
+| newDestinationCaller | Pubkey | Caller on the destination domain                |
 
 `handleReceiveMessage`
 
@@ -383,17 +390,17 @@ Handle an incoming message received by the local MessageTransmitter, and take th
 | Parameter    |   Type   | Description                                       |
 | ------------ | :------: | ------------------------------------------------- |
 | remoteDomain |   u32    | The domain where the message originated from      |
-| sender       | Vec\<u8> | The sender of the message (remote TokenMessenger) |
+| sender       |  Pubkey  | The sender of the message (remote TokenMessenger) |
 | messageBody  | Vec\<u8> | The message body bytes                            |
 
 `addRemoteTokenMessenger`
 
 Add the TokenMessenger for a remote domain.
 
-| Parameter      |   Type   | Description                      |
-| -------------- | :------: | -------------------------------- |
-| domain         |   u32    | Domain of remote TokenMessenger  |
-| tokenMessenger | Vec\<u8> | Address of remote TokenMessenger |
+| Parameter      |  Type  | Description                      |
+| -------------- | :----: | -------------------------------- |
+| domain         |  u32   | Domain of remote TokenMessenger  |
+| tokenMessenger | Pubkey | Address of remote TokenMessenger |
 
 `removeRemoteTokenMessenger`
 
@@ -422,10 +429,10 @@ Stores TokenMessenger configuration.
 
 Stores information about TokenMessenger on remote domain.
 
-| Field          |   Type   | Description                      |
-| -------------- | :------: | -------------------------------- |
-| domain         |   u32    | Domain of remote TokenMessenger  |
-| tokenMessenger | Vec\<u8> | Address of remote TokenMessenger |
+| Field          |  Type  | Description                      |
+| -------------- | :----: | -------------------------------- |
+| domain         |  u32   | Domain of remote TokenMessenger  |
+| tokenMessenger | Pubkey | Address of remote TokenMessenger |
 
 ### **Events**
 
@@ -433,32 +440,32 @@ Stores information about TokenMessenger on remote domain.
 
 `OwnershipTransferStarted`
 
-|     Field     |  Type  | Description    |
-| :-----------: | :----: | -------------- |
+| Field         |  Type  | Description    |
+| ------------- | :----: | -------------- |
 | previousOwner | Pubkey | Previous owner |
-|   newOwner    | Pubkey | New owner      |
+| newOwner      | Pubkey | New owner      |
 
 `OwnershipTransferred`
 
-|     Field     |  Type  | Description    |
-| :-----------: | :----: | -------------- |
+| Field         |  Type  | Description    |
+| ------------- | :----: | -------------- |
 | previousOwner | Pubkey | Previous owner |
-|   newOwner    | Pubkey | New owner      |
+| newOwner      | Pubkey | New owner      |
 
 `DepositForBurn`
 
 Emitted when a DepositForBurn message is sent.
 
-| Field                     |   Type   | Description                                                 |
-| ------------------------- | :------: | ----------------------------------------------------------- |
-| nonce                     |   u64    | Unique nonce reserved by message                            |
-| burnToken                 |  Pubkey  | Mint address of token burnt on Solana                       |
-| amount                    |   u64    | Deposit amount                                              |
-| depositor                 |  Pubkey  | Address where deposit is transferred from                   |
-| mintRecipient             | Vec\<u8> | Address receiving minted tokens on destination domain       |
-| destinationDomain         |   u32    | Destination domain                                          |
-| destinationTokenMessenger | Vec\<u8> | Address of TokenMessenger on destination domain             |
-| destinationCaller         | Vec\<u8> | Authorized caller of receiveMessage() on destination domain |
+| Field                     |  Type  | Description                                                 |
+| ------------------------- | :----: | ----------------------------------------------------------- |
+| nonce                     |  u64   | Unique nonce reserved by message                            |
+| burnToken                 | Pubkey | Mint address of token burnt on Solana                       |
+| amount                    |  u64   | Deposit amount                                              |
+| depositor                 | Pubkey | Address where deposit is transferred from                   |
+| mintRecipient             | Pubkey | Address receiving minted tokens on destination domain       |
+| destinationDomain         |  u32   | Destination domain                                          |
+| destinationTokenMessenger | Pubkey | Address of TokenMessenger on destination domain             |
+| destinationCaller         | Pubkey | Authorized caller of receiveMessage() on destination domain |
 
 `MintAndWithdraw`
 
@@ -474,19 +481,19 @@ Emitted when tokens are minted.
 
 Emitted when a remote TokenMessenger is added.
 
-| Field          |   Type   | Description                      |
-| -------------- | :------: | -------------------------------- |
-| domain         |   u32    | Domain of remote TokenMessenger  |
-| tokenMessenger | Vec\<u8> | Address of remote TokenMessenger |
+| Field          |  Type  | Description                      |
+| -------------- | :----: | -------------------------------- |
+| domain         |  u32   | Domain of remote TokenMessenger  |
+| tokenMessenger | Pubkey | Address of remote TokenMessenger |
 
 `RemoteTokenMessengerRemoved`
 
 Emitted when a remote TokenMessenger is removed.
 
-| Field          |   Type   | Description                      |
-| -------------- | :------: | -------------------------------- |
-| domain         |   u32    | Domain of remote TokenMessenger  |
-| tokenMessenger | Vec\<u8> | Address of remote TokenMessenger |
+| Field          |  Type  | Description                      |
+| -------------- | :----: | -------------------------------- |
+| domain         |  u32   | Domain of remote TokenMessenger  |
+| tokenMessenger | Pubkey | Address of remote TokenMessenger |
 
 ## TokenMinter
 
@@ -575,11 +582,11 @@ Stores TokenMinter configuration and records stats.
 
 Stores information about the token on remote domain.
 
-| Field      |   Type   | Description              |
-| ---------- | :------: | ------------------------ |
-| domain     |   u32    | Remote domain            |
-| token      | Vec\<u8> | Remote token address     |
-| localToken |  Pubkey  | Local token mint address |
+| Field      |  Type  | Description              |
+| ---------- | :----: | ------------------------ |
+| domain     |  u32   | Remote domain            |
+| token      | Pubkey | Remote token address     |
+| localToken | Pubkey | Local token mint address |
 
 ### **Events**
 
@@ -587,14 +594,14 @@ Stores information about the token on remote domain.
 
 `SetTokenController`
 
-|      Field      |  Type  | Description          |
-| :-------------: | :----: | -------------------- |
+| Field           |  Type  | Description          |
+| --------------- | :----: | -------------------- |
 | tokenController | Pubkey | New token controller |
 
 `PauserChanged`
 
-|   Field    |  Type  | Description |
-| :--------: | :----: | ----------- |
+| Field      |  Type  | Description |
+| ---------- | :----: | ----------- |
 | newAddress | Pubkey | New pauser  |
 
 `Mint`
@@ -602,7 +609,7 @@ Stores information about the token on remote domain.
 Emitted when a mint request is processed.
 
 | Field  | Type | Description   |
-| :----: | :--: | ------------- |
+| ------ | :--: | ------------- |
 | amount | u64  | Minted amount |
 
 `Burn`
@@ -610,44 +617,44 @@ Emitted when a mint request is processed.
 Emitted when a burn request is processed.
 
 | Field  | Type | Description   |
-| :----: | :--: | ------------- |
+| ------ | :--: | ------------- |
 | amount | u64  | Burned amount |
 
 `SetBurnLimitPerMessage`
 
 Emitted when a burn limit per message is set.
 
-|        Field        |  Type  | Description                |
-| :-----------------: | :----: | -------------------------- |
-|        token        | Pubkey | Token mint address         |
+| Field               |  Type  | Description                |
+| ------------------- | :----: | -------------------------- |
+| token               | Pubkey | Token mint address         |
 | burnLimitPerMessage |  u64   | New burn limit per message |
 
 `TokenPairLinked`
 
 Emitted when a token pair is linked.
 
-|    Field     |   Type   | Description              |
-| :----------: | :------: | ------------------------ |
-|  localToken  |  Pubkey  | Local token mint address |
-| remoteDomain |   u32    | Remote domain            |
-| remoteToken  | Vec\<u8> | Remote token address     |
+| Field        |  Type  | Description              |
+| ------------ | :----: | ------------------------ |
+| localToken   | Pubkey | Local token mint address |
+| remoteDomain |  u32   | Remote domain            |
+| remoteToken  | Pubkey | Remote token address     |
 
 `TokenPairUnlinked`
 
 Emitted when a token pair is linked.
 
-|    Field     |   Type   | Description              |
-| :----------: | :------: | ------------------------ |
-|  localToken  |  Pubkey  | Local token mint address |
-| remoteDomain |   u32    | Remote domain            |
-| remoteToken  | Vec\<u8> | Remote token address     |
+| Field        |  Type  | Description              |
+| ------------ | :----: | ------------------------ |
+| localToken   | Pubkey | Local token mint address |
+| remoteDomain |  u32   | Remote domain            |
+| remoteToken  | Pubkey | Remote token address     |
 
 `Pause`
 
 Emitted when TokenMinter is paused.
 
 | Field | Type | Description |
-| :---: | :--: | ----------- |
+| ----- | :--: | ----------- |
 | None  |      |             |
 
 `Unpause`
@@ -655,7 +662,7 @@ Emitted when TokenMinter is paused.
 Emitted when TokenMinter is resumed.
 
 | Field | Type | Description |
-| :---: | :--: | ----------- |
+| ----- | :--: | ----------- |
 | None  |      |             |
 
 ## Permissions

@@ -3,7 +3,7 @@
 use anchor_lang::prelude::*;
 
 #[account]
-#[derive(Default, Debug, PartialEq)]
+#[derive(Debug)]
 pub struct TokenMessenger {
     pub owner: Pubkey,
     pub pending_owner: Pubkey,
@@ -12,8 +12,8 @@ pub struct TokenMessenger {
 }
 
 #[account]
-#[derive(Default, Debug, PartialEq)]
+#[derive(Debug)]
 pub struct RemoteTokenMessenger {
     domain: u32,
-    token_messenger: Vec<u8>,
+    token_messenger: Pubkey,
 }

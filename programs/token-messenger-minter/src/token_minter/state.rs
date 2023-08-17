@@ -3,7 +3,7 @@
 use anchor_lang::prelude::*;
 
 #[account]
-#[derive(Default, Debug, PartialEq)]
+#[derive(Debug)]
 pub struct TokenMinter {
     pub token_controller: Pubkey,
     pub pauser: Pubkey,
@@ -16,9 +16,9 @@ pub struct TokenMinter {
 }
 
 #[account]
-#[derive(Default, Debug, PartialEq)]
+#[derive(Debug)]
 pub struct RemoteToken {
     domain: u32,
-    token: Vec<u8>,
+    token: Pubkey,
     local_token: Pubkey,
 }
