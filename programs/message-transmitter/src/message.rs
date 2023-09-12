@@ -25,15 +25,21 @@ impl<'a> Message<'a> {
     const MESSAGE_BODY_INDEX: usize = 116;
 
     /// Validates source array size and returns a new message
-    pub fn new(message_bytes: &'a [u8]) -> Result<Self> {
+    pub fn new(expected_version: u32, message_bytes: &'a [u8]) -> Result<Self> {
         require_gte!(
             message_bytes.len(),
             Self::MESSAGE_BODY_INDEX,
             MessageTransmitterError::MalformedMessage
         );
-        Ok(Self {
+        let message = Self {
             data: message_bytes,
-        })
+        };
+        require_eq!(
+            expected_version,
+            message.version()?,
+            MessageTransmitterError::InvalidMessageVersion
+        );
+        Ok(message)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -51,12 +57,12 @@ impl<'a> Message<'a> {
         let mut output = vec![0; utils::checked_add(Self::MESSAGE_BODY_INDEX, message_body.len())?];
 
         output[Self::VERSION_INDEX..Self::SOURCE_DOMAIN_INDEX]
-            .copy_from_slice(&version.to_le_bytes());
+            .copy_from_slice(&version.to_be_bytes());
         output[Self::SOURCE_DOMAIN_INDEX..Self::DESTINATION_DOMAIN_INDEX]
-            .copy_from_slice(&local_domain.to_le_bytes());
+            .copy_from_slice(&local_domain.to_be_bytes());
         output[Self::DESTINATION_DOMAIN_INDEX..Self::NONCE_INDEX]
-            .copy_from_slice(&destination_domain.to_le_bytes());
-        output[Self::NONCE_INDEX..Self::SENDER_INDEX].copy_from_slice(&nonce.to_le_bytes());
+            .copy_from_slice(&destination_domain.to_be_bytes());
+        output[Self::NONCE_INDEX..Self::SENDER_INDEX].copy_from_slice(&nonce.to_be_bytes());
         output[Self::SENDER_INDEX..Self::RECIPIENT_INDEX].copy_from_slice(sender.as_ref());
         output[Self::RECIPIENT_INDEX..Self::DESTINATION_CALLER_INDEX]
             .copy_from_slice(recipient.as_ref());
@@ -111,6 +117,11 @@ impl<'a> Message<'a> {
         self.read_integer::<u64>(Self::NONCE_INDEX)
     }
 
+    /// Returns message_body field
+    pub fn message_body(&self) -> &[u8] {
+        &self.data[Self::MESSAGE_BODY_INDEX..]
+    }
+
     ////////////////////
     // private helpers
 
@@ -120,7 +131,7 @@ impl<'a> Message<'a> {
         T: num_traits::PrimInt + FromBytes + Display,
         &'a <T as FromBytes>::Bytes: TryFrom<&'a [u8]> + 'a,
     {
-        Ok(T::from_le_bytes(
+        Ok(T::from_be_bytes(
             self.data[index..utils::checked_add(index, std::mem::size_of::<T>())?]
                 .try_into()
                 .map_err(|_| MessageTransmitterError::MalformedMessage)?,

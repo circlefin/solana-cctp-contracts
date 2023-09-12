@@ -6,13 +6,12 @@ use {
     libsecp256k1::Signature as EVMSignature,
     solana_program::{
         keccak::{Hash, Hasher},
-        pubkey::PUBKEY_BYTES,
         secp256k1_recover::{secp256k1_recover, Secp256k1RecoverError},
     },
 };
 
 #[account]
-#[derive(Debug)]
+#[derive(Debug, InitSpace)]
 /// Main state of the MessageTransmitter program
 pub struct MessageTransmitter {
     pub owner: Pubkey,
@@ -23,13 +22,15 @@ pub struct MessageTransmitter {
     pub local_domain: u32,
     pub version: u32,
     pub signature_threshold: u32,
+    #[max_len(1)]
     pub enabled_attesters: Vec<Pubkey>,
     pub max_message_body_size: u64,
     pub next_available_nonce: u64,
+    pub authority_bump: u8,
 }
 
 #[account]
-#[derive(Debug)]
+#[derive(Debug, InitSpace)]
 /// UsedNonces account holds an array of bits that indicate which nonces were already used
 /// so they can't be resused to receive new messages. Array starts with the first_nonce and
 /// holds flags for UsedNonces::MAX_NONCES. Nonces are recorded separately for each remote_domain.
@@ -40,9 +41,6 @@ pub struct UsedNonces {
 }
 
 impl MessageTransmitter {
-    ///TODO replace with a hard-coded value
-    pub const LEN: usize = 8 + std::mem::size_of::<MessageTransmitter>() + PUBKEY_BYTES;
-
     pub const ATTESTATION_SIGNATURE_LENGTH: usize = 65;
 
     /// Checks if the state is valid
@@ -175,7 +173,6 @@ impl MessageTransmitter {
 }
 
 impl UsedNonces {
-    pub const LEN: usize = 8 + std::mem::size_of::<UsedNonces>();
     pub const MAX_NONCES: usize = 6400;
 
     /// Returns the first nonce in the UsedNonces account corresponding to the given nonce.
@@ -207,14 +204,14 @@ impl UsedNonces {
 
         let position = utils::checked_sub(nonce, self.first_nonce)? as usize;
         let entry = utils::checked_div(position, 64)?;
-        let bit = 1 << position % 64;
+        let bit = 1 << (position % 64);
 
         require!(
             self.used_nonces[entry] & bit == 0,
             MessageTransmitterError::NonceAlreadyUsed
         );
 
-        self.used_nonces[entry] = self.used_nonces[entry] | bit;
+        self.used_nonces[entry] |= bit;
 
         Ok(())
     }

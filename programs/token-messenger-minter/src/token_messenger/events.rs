@@ -35,12 +35,12 @@ pub struct MintAndWithdraw {
 
 #[event]
 pub struct RemoteTokenMessengerAdded {
-    pub domain: Pubkey,
+    pub domain: u32,
     pub token_messenger: Pubkey,
 }
 
 #[event]
 pub struct RemoteTokenMessengerRemoved {
-    pub domain: Pubkey,
+    pub domain: u32,
     pub token_messenger: Pubkey,
 }

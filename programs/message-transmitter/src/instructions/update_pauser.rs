@@ -26,6 +26,12 @@ pub struct UpdatePauserParams {
 
 // Instruction handler
 pub fn update_pauser(ctx: Context<UpdatePauserContext>, params: &UpdatePauserParams) -> Result<()> {
+    require_keys_neq!(
+        params.new_pauser,
+        Pubkey::default(),
+        MessageTransmitterError::InvalidPauser
+    );
+
     ctx.accounts.message_transmitter.pauser = params.new_pauser;
 
     emit!(PauserChanged {

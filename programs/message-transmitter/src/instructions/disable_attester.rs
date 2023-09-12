@@ -1,7 +1,9 @@
 //! DisableAttester instruction handler
 
 use {
-    crate::{error::MessageTransmitterError, events::AttesterDisabled, state::MessageTransmitter},
+    crate::{
+        error::MessageTransmitterError, events::AttesterDisabled, state::MessageTransmitter, utils,
+    },
     anchor_lang::prelude::*,
     solana_program::pubkey::PUBKEY_BYTES,
 };
@@ -15,12 +17,12 @@ pub struct DisableAttesterContext<'info> {
     #[account()]
     pub attester_manager: Signer<'info>,
 
-    // MessageTransmitter::LEN includes one attester and reallocation happens before
+    // MessageTransmitter::INIT_SPACE includes one attester and reallocation happens before
     // the attester is removed from "enabled_attesters" this is why the logic below uses "2"
     #[account(
         mut,
         has_one = attester_manager @ MessageTransmitterError::InvalidAuthority,
-        realloc = MessageTransmitter::LEN +
+        realloc = utils::DISCRIMINATOR_SIZE + MessageTransmitter::INIT_SPACE +
                     if message_transmitter.enabled_attesters.len() < 2 {
                         0
                     } else {
@@ -31,13 +33,13 @@ pub struct DisableAttesterContext<'info> {
     )]
     pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
 
-    system_program: Program<'info, System>,
+    pub system_program: Program<'info, System>,
 }
 
 // Instruction parameters
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct DisableAttesterParams {
-    attester: Pubkey,
+    pub attester: Pubkey,
 }
 
 // Instruction handler

@@ -1,16 +1,16 @@
-//! UpdatePauser instruction handler
+//! SetTokenController instruction handler
 
 use {
     crate::{
         token_messenger::{error::TokenMessengerError, state::TokenMessenger},
-        token_minter::{error::TokenMinterError, events::PauserChanged, state::TokenMinter},
+        token_minter::{error::TokenMinterError, events::SetTokenController, state::TokenMinter},
     },
     anchor_lang::prelude::*,
 };
 
 // Instruction accounts
 #[derive(Accounts)]
-pub struct UpdatePauserContext<'info> {
+pub struct SetTokenControllerContext<'info> {
     #[account()]
     pub owner: Signer<'info>,
 
@@ -25,22 +25,25 @@ pub struct UpdatePauserContext<'info> {
 
 // Instruction parameters
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub struct UpdatePauserParams {
-    pub new_pauser: Pubkey,
+pub struct SetTokenControllerParams {
+    pub token_controller: Pubkey,
 }
 
 // Instruction handler
-pub fn update_pauser(ctx: Context<UpdatePauserContext>, params: &UpdatePauserParams) -> Result<()> {
+pub fn set_token_controller(
+    ctx: Context<SetTokenControllerContext>,
+    params: &SetTokenControllerParams,
+) -> Result<()> {
     require_keys_neq!(
-        params.new_pauser,
+        params.token_controller,
         Pubkey::default(),
-        TokenMinterError::InvalidPauser
+        TokenMinterError::InvalidTokenController
     );
 
-    ctx.accounts.token_minter.pauser = params.new_pauser;
+    ctx.accounts.token_minter.token_controller = params.token_controller;
 
-    emit!(PauserChanged {
-        new_address: ctx.accounts.token_minter.pauser
+    emit!(SetTokenController {
+        token_controller: ctx.accounts.token_minter.token_controller
     });
 
     Ok(())

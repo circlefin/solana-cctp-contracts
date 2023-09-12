@@ -23,8 +23,9 @@ default = []
 test = []
 
 [dependencies]
-anchor-lang = "=0.28.0"
-anchor-spl = "=0.28.0"
-solana-program = "=1.16.6"
-solana-security-txt = "=1.1.1"
-#borsh = "=0.9.3"
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+solana-program = "1.16.9"
+solana-security-txt = "1.1.1"
+num-traits = "0.2.16"
+message-transmitter = { path = "../message-transmitter", features = ["no-entrypoint", "cpi"] }

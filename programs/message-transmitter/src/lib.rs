@@ -11,6 +11,7 @@ pub mod utils;
 
 use {anchor_lang::prelude::*, instructions::*};
 
+#[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
     name: "Message Transmitter for CCTP",
     project_url: "https://github.com/circlefin/solana-cctp-contracts",
@@ -115,8 +116,8 @@ pub mod message_transmitter {
         instructions::replace_message(ctx, &params)
     }
 
-    pub fn receive_message(
-        ctx: Context<ReceiveMessageContext>,
+    pub fn receive_message<'info>(
+        ctx: Context<'_, '_, '_, 'info, ReceiveMessageContext<'info>>,
         params: ReceiveMessageParams,
     ) -> Result<()> {
         instructions::receive_message(ctx, &params)

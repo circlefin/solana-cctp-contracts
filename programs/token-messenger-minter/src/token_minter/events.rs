@@ -13,19 +13,21 @@ pub struct PauserChanged {
 }
 
 #[event]
-pub struct Mint {
-    pub amount: u64,
-}
-
-#[event]
-pub struct Burn {
-    pub amount: u64,
-}
-
-#[event]
 pub struct SetBurnLimitPerMessage {
     pub token: Pubkey,
     pub burn_limit_per_message: u64,
+}
+
+#[event]
+pub struct LocalTokenAdded {
+    pub custody: Pubkey,
+    pub mint: Pubkey,
+}
+
+#[event]
+pub struct LocalTokenRemoved {
+    pub custody: Pubkey,
+    pub mint: Pubkey,
 }
 
 #[event]

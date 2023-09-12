@@ -6,16 +6,20 @@ use anchor_lang::prelude::*;
 pub enum MessageTransmitterError {
     #[msg("Invalid authority")]
     InvalidAuthority,
-    #[msg("Instruction is not allowed in production")]
-    InvalidEnvironment,
     #[msg("Instruction is not allowed at this time")]
-    InstructionNotAllowed,
-    #[msg("Invalid state")]
-    InvalidState,
+    ProgramPaused,
+    #[msg("Invalid message transmitter state")]
+    InvalidMessageTransmitterState,
     #[msg("Invalid signature threshold")]
     InvalidSignatureThreshold,
     #[msg("Signature threshold already set")]
     SignatureThresholdAlreadySet,
+    #[msg("Invalid owner")]
+    InvalidOwner,
+    #[msg("Invalid pauser")]
+    InvalidPauser,
+    #[msg("Invalid attester manager")]
+    InvalidAttesterManager,
     #[msg("Invalid attester")]
     InvalidAttester,
     #[msg("Attester already enabled")]
@@ -26,8 +30,6 @@ pub enum MessageTransmitterError {
     SignatureThresholdTooLow,
     #[msg("Attester already disabled")]
     AttesterAlreadyDisabled,
-    #[msg("Overflow in arithmetic operation")]
-    MathOverflow,
     #[msg("Message body exceeds max size")]
     MessageBodyLimitExceeded,
     #[msg("Invalid destination caller")]
@@ -66,4 +68,14 @@ pub enum MessageTransmitterError {
     InvalidSignatureSValue,
     #[msg("Invalid message hash")]
     InvalidMessageHash,
+}
+
+#[error_code]
+pub enum MathError {
+    #[msg("Overflow in arithmetic operation")]
+    MathOverflow,
+    #[msg("Underflow in arithmetic operation")]
+    MathUnderflow,
+    #[msg("Error in division operation")]
+    ErrorInDivision,
 }

@@ -1,7 +1,9 @@
 //! EnableAttester instruction handler
 
 use {
-    crate::{error::MessageTransmitterError, events::AttesterEnabled, state::MessageTransmitter},
+    crate::{
+        error::MessageTransmitterError, events::AttesterEnabled, state::MessageTransmitter, utils,
+    },
     anchor_lang::prelude::*,
     solana_program::pubkey::PUBKEY_BYTES,
 };
@@ -15,25 +17,25 @@ pub struct EnableAttesterContext<'info> {
     #[account()]
     pub attester_manager: Signer<'info>,
 
-    // MessageTransmitter::LEN includes one attester and reallocation happens before
+    // MessageTransmitter::INIT_SPACE includes one attester and reallocation happens before
     // the attester is added to "enabled_attesters" this is why the logic below uses
     // "enabled_attesters.len()" and not +/-1
     #[account(
         mut,
         has_one = attester_manager @ MessageTransmitterError::InvalidAuthority,
-        realloc = MessageTransmitter::LEN + message_transmitter.enabled_attesters.len() * PUBKEY_BYTES,
+        realloc = utils::DISCRIMINATOR_SIZE + MessageTransmitter::INIT_SPACE + message_transmitter.enabled_attesters.len() * PUBKEY_BYTES,
         realloc::payer = payer,
         realloc::zero = false
     )]
     pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
 
-    system_program: Program<'info, System>,
+    pub system_program: Program<'info, System>,
 }
 
 // Instruction parameters
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct EnableAttesterParams {
-    new_attester: Pubkey,
+    pub new_attester: Pubkey,
 }
 
 // Instruction handler

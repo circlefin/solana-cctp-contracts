@@ -1,9 +1,11 @@
 //! Common utility functions.
 
 #[cfg(not(feature = "test"))]
-use crate::program::MessageTransmitter;
+use crate::{error::MessageTransmitterError, program::MessageTransmitter};
 //
-use {crate::error::MessageTransmitterError, anchor_lang::prelude::*, std::fmt::Display};
+use {crate::error::MathError, anchor_lang::prelude::*, std::fmt::Display};
+
+pub const DISCRIMINATOR_SIZE: usize = 8;
 
 #[cfg(not(feature = "test"))]
 /// Checks that provided upgrade_authority is indeed the upgrade authority for the given program
@@ -49,7 +51,7 @@ where
         Ok(res)
     } else {
         msg!("Error: Overflow in {} + {}", arg1, arg2);
-        err!(MessageTransmitterError::MathOverflow)
+        err!(MathError::MathOverflow)
     }
 }
 
@@ -62,7 +64,7 @@ where
         Ok(res)
     } else {
         msg!("Error: Underflow in {} - {}", arg1, arg2);
-        err!(MessageTransmitterError::MathOverflow)
+        err!(MathError::MathUnderflow)
     }
 }
 
@@ -75,7 +77,7 @@ where
         Ok(res)
     } else {
         msg!("Error: Error in {} / {}", arg1, arg2);
-        err!(MessageTransmitterError::MathOverflow)
+        err!(MathError::ErrorInDivision)
     }
 }
 
@@ -88,6 +90,6 @@ where
         Ok(res)
     } else {
         msg!("Error: Overflow in {} * {}", arg1, arg2);
-        err!(MessageTransmitterError::MathOverflow)
+        err!(MathError::MathOverflow)
     }
 }

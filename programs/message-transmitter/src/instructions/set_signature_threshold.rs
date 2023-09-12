@@ -24,7 +24,7 @@ pub struct SetSignatureThresholdContext<'info> {
 // Instruction parameters
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct SetSignatureThresholdParams {
-    new_signature_threshold: u32,
+    pub new_signature_threshold: u32,
 }
 
 // Instruction handler

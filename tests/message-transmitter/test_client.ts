@@ -1,12 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { MessageTransmitter } from "../../target/types/message_transmitter";
-import {
-  PublicKey,
-  Keypair,
-  SystemProgram,
-  AccountMeta,
-  SYSVAR_INSTRUCTIONS_PUBKEY,
-} from "@solana/web3.js";
+import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import BN from "bn.js";
 
@@ -19,6 +13,7 @@ export class TestClient {
   program: anchor.Program<MessageTransmitter>;
   printErrors: boolean;
 
+  authorityPda: { publicKey: PublicKey; bump: number };
   messageTransmitter: { publicKey: PublicKey; bump: number };
 
   constructor() {
@@ -39,10 +34,17 @@ export class TestClient {
     this.attesterManager = Keypair.generate();
 
     // pdas
+    this.authorityPda = this.findProgramAddress(
+      "message_transmitter_authority"
+    );
     this.messageTransmitter = this.findProgramAddress("message_transmitter");
   };
 
-  findProgramAddress = (label: string, extraSeeds = null) => {
+  findProgramAddress = (
+    label: string,
+    extraSeeds = null,
+    program = this.program.programId
+  ) => {
     let seeds = [Buffer.from(anchor.utils.bytes.utf8.encode(label))];
     if (extraSeeds) {
       for (let extraSeed of extraSeeds) {
@@ -57,7 +59,7 @@ export class TestClient {
         }
       }
     }
-    let res = PublicKey.findProgramAddressSync(seeds, this.program.programId);
+    let res = PublicKey.findProgramAddressSync(seeds, program);
     return { publicKey: res[0], bump: res[1] };
   };
 
@@ -68,6 +70,14 @@ export class TestClient {
       return err;
     }
     throw new Error(message ? message : "Call should've failed");
+  };
+
+  // Convert a hex string to a byte array
+  hexToBytes = (hex: string) => {
+    let bytes = [];
+    for (let c = 0; c < hex.length; c += 2)
+      bytes.push(parseInt(hex.substr(c, 2), 16));
+    return bytes;
   };
 
   ///////
@@ -93,6 +103,7 @@ export class TestClient {
       })
       .accounts({
         upgradeAuthority: this.provider.wallet.publicKey,
+        authorityPda: this.authorityPda.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         messageTransmitterProgramData: programData,
         messageTransmitterProgram: this.program.programId,
@@ -217,103 +228,6 @@ export class TestClient {
         messageTransmitter: this.messageTransmitter.publicKey,
       })
       .signers([this.attesterManager])
-      .rpc();
-  };
-
-  sendMessage = async (
-    destinationDomain: number,
-    recipient: PublicKey,
-    messageBody: number[]
-  ) => {
-    await this.program.methods
-      .sendMessage({
-        destinationDomain,
-        recipient,
-        messageBody: Buffer.from(messageBody),
-      })
-      .accounts({
-        sender: this.provider.wallet.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-      })
-      .rpc();
-  };
-
-  sendMessageWithCaller = async (
-    destinationDomain: number,
-    recipient: PublicKey,
-    destinationCaller: PublicKey,
-    messageBody: number[]
-  ) => {
-    await this.program.methods
-      .sendMessageWithCaller({
-        destinationDomain,
-        recipient,
-        destinationCaller,
-        messageBody: Buffer.from(messageBody),
-      })
-      .accounts({
-        sender: this.provider.wallet.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-      })
-      .rpc();
-  };
-
-  replaceMessage = async (
-    originalMessage: number[],
-    originalAttestation: number[],
-    newMessageBody: number[],
-    newDestinationCaller: PublicKey
-  ) => {
-    await this.program.methods
-      .replaceMessage({
-        originalMessage: Buffer.from(originalMessage),
-        originalAttestation: Buffer.from(originalAttestation),
-        newMessageBody: Buffer.from(newMessageBody),
-        newDestinationCaller,
-      })
-      .accounts({
-        sender: this.provider.wallet.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-      })
-      .rpc();
-  };
-
-  receiveMessage = async (
-    sourceDomain: number,
-    nonce: bigint,
-    message: number[],
-    attestation: number[]
-  ) => {
-    const buffer = Buffer.alloc(12);
-    buffer.writeUint32BE(sourceDomain);
-
-    const firstNonce =
-      ((nonce - BigInt(1)) / BigInt(6400)) * BigInt(6400) + BigInt(1);
-    buffer.writeBigInt64BE(firstNonce, 4);
-
-    const usedNonces = this.findProgramAddress("used_nonces", [
-      buffer,
-    ]).publicKey;
-
-    await this.program.methods
-      .receiveMessage({
-        message: Buffer.from(message),
-        attestation: Buffer.from(attestation),
-      })
-      .accounts({
-        caller: this.provider.wallet.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        usedNonces,
-        recipientTokenAccount: this.messageTransmitter.publicKey,
-        custodyTokenAccount: this.messageTransmitter.publicKey,
-        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-        receiver: this.messageTransmitter.publicKey,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
       .rpc();
   };
 }

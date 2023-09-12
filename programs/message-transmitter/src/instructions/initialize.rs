@@ -1,7 +1,13 @@
 //! Initialize instruction handler
 
 use {
-    crate::{error::MessageTransmitterError, program, state::MessageTransmitter, utils},
+    crate::{
+        error::MessageTransmitterError,
+        events::{AttesterEnabled, AttesterManagerUpdated},
+        program,
+        state::MessageTransmitter,
+        utils,
+    },
     anchor_lang::prelude::*,
 };
 
@@ -14,11 +20,18 @@ pub struct InitializeContext<'info> {
     #[account()]
     pub upgrade_authority: Signer<'info>,
 
+    /// CHECK: empty PDA, used to check that handleReceiveMessage was called by MessageTransmitter
+    #[account(
+        seeds = [b"message_transmitter_authority"],
+        bump
+    )]
+    pub authority_pda: AccountInfo<'info>,
+
     // MessageTransmitter state account
     #[account(
         init,
         payer = payer,
-        space = MessageTransmitter::LEN,
+        space = utils::DISCRIMINATOR_SIZE + MessageTransmitter::INIT_SPACE,
         seeds = [b"message_transmitter"],
         bump
     )]
@@ -28,9 +41,9 @@ pub struct InitializeContext<'info> {
     #[account()]
     pub message_transmitter_program_data: AccountInfo<'info /*, ProgramData*/>,
 
-    message_transmitter_program: Program<'info, program::MessageTransmitter>,
+    pub message_transmitter_program: Program<'info, program::MessageTransmitter>,
 
-    system_program: Program<'info, System>,
+    pub system_program: Program<'info, System>,
 }
 
 // Instruction parameters
@@ -66,11 +79,25 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
     message_transmitter.enabled_attesters.push(params.attester);
     message_transmitter.max_message_body_size = params.max_message_body_size;
     message_transmitter.next_available_nonce = 1;
+    message_transmitter.authority_bump = *ctx
+        .bumps
+        .get("authority_pda")
+        .ok_or(ProgramError::InvalidSeeds)?;
 
     // validate the state
-    if !message_transmitter.validate() {
-        return err!(MessageTransmitterError::InvalidState);
-    }
+    require!(
+        message_transmitter.validate(),
+        MessageTransmitterError::InvalidMessageTransmitterState
+    );
+
+    emit!(AttesterEnabled {
+        attester: params.attester
+    });
+
+    emit!(AttesterManagerUpdated {
+        previous_attester_manager: Pubkey::default(),
+        new_attester_manager: authority
+    });
 
     Ok(())
 }

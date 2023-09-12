@@ -31,6 +31,12 @@ pub fn transfer_ownership(
     ctx: Context<TransferOwnershipContext>,
     params: &TransferOwnershipParams,
 ) -> Result<()> {
+    require_keys_neq!(
+        params.new_owner,
+        Pubkey::default(),
+        MessageTransmitterError::InvalidOwner
+    );
+
     let message_transmitter = ctx.accounts.message_transmitter.as_mut();
 
     message_transmitter.pending_owner = params.new_owner;

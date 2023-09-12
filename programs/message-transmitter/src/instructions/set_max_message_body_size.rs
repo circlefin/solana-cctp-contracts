@@ -24,7 +24,7 @@ pub struct SetMaxMessageBodySizeContext<'info> {
 // Instruction parameters
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct SetMaxMessageBodySizeParams {
-    new_max_message_body_size: u64,
+    pub new_max_message_body_size: u64,
 }
 
 // Instruction handler

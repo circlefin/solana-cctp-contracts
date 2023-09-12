@@ -23,10 +23,9 @@ default = []
 test = []
 
 [dependencies]
-anchor-lang = { version = "=0.28.0", features = ["init-if-needed"] }
-anchor-spl = "=0.28.0"
-solana-program = "=1.16.6"
-solana-security-txt = "=1.1.1"
-num-traits = "=0.2.16"
-libsecp256k1 = "=0.7.1"
-#borsh = "=0.10.3"
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-spl = "0.28.0"
+solana-program = "1.16.9"
+solana-security-txt = "1.1.1"
+num-traits = "0.2.16"
+libsecp256k1 = "0.7.1"

@@ -137,7 +137,7 @@ Replace a message with a new message body and/or destination caller.
 | originalMessage      | Vec\<u8> | Original message to replace                                                          |
 | originalAttestation  | Vec\<u8> | Attestation of originalMessage                                                       |
 | newMessageBody       | Vec\<u8> | New message body of replaced message                                                 |
-| newDestinationCaller | Vec\<u8> | The new destination caller, which may be the same as the original destination caller |
+| newDestinationCaller |  Pubkey  | The new destination caller, which may be the same as the original destination caller |
 
 `setSignatureThreshold`
 
@@ -195,19 +195,19 @@ Resume MessageTransmitter.
 
 Stores MessageTransmitter configuration and next available nonce.
 
-| Field              |      Type      | Description                                             |
-| ------------------ | :------------: | ------------------------------------------------------- |
-| owner              |     Pubkey     | Main authority of the program                           |
-| pendingOwner       |     Pubkey     | New authority that needs to be accepted                 |
-| attesterManager    |     Pubkey     | Attester Manager of the program                         |
-| pauser             |     Pubkey     | Pause / unpause authority                               |
-| paused             |      bool      | Specifies whether MessageTransmitter is paused          |
-| localDomain        |      u32       | Solana domain id                                        |
-| version            |      u32       | Message Format version                                  |
-| signatureThreshold |      u32       | Threshold of signatures required to attest to a message |
-| enabledAttesters   | Vec\<[u8; 20]> | Enabled attesters (message signers)                     |
-| maxMessageBodySize |      u64       | Maximum size of message body, in bytes                  |
-| nextAvailableNonce |      u64       | Next available nonce from this source domain            |
+| Field              |     Type     | Description                                             |
+| ------------------ | :----------: | ------------------------------------------------------- |
+| owner              |    Pubkey    | Main authority of the program                           |
+| pendingOwner       |    Pubkey    | New authority that needs to be accepted                 |
+| attesterManager    |    Pubkey    | Attester Manager of the program                         |
+| pauser             |    Pubkey    | Pause / unpause authority                               |
+| paused             |     bool     | Specifies whether MessageTransmitter is paused          |
+| localDomain        |     u32      | Solana domain id                                        |
+| version            |     u32      | Message Format version                                  |
+| signatureThreshold |     u32      | Threshold of signatures required to attest to a message |
+| enabledAttesters   | Vec\<Pubkey> | Enabled attesters (message signers)                     |
+| maxMessageBodySize |     u64      | Maximum size of message body, in bytes                  |
+| nextAvailableNonce |     u64      | Next available nonce from this source domain            |
 
 `UsedNonces`
 
@@ -378,10 +378,12 @@ Replace a BurnMessage to change the mint recipient and/or destination caller. Al
 
 This is useful in cases where the user specified an incorrect address and has no way to safely mint the previously burned tokens.
 
-| Parameter            |  Type  | Description                                     |
-| -------------------- | :----: | ----------------------------------------------- |
-| newMintRecipient     | Pubkey | Address of mint recipient on destination domain |
-| newDestinationCaller | Pubkey | Caller on the destination domain                |
+| Parameter            |   Type   | Description                                     |
+| -------------------- | :------: | ----------------------------------------------- |
+| originalMessage      | Vec\<u8> | Original message to replace                     |
+| originalAttestation  | Vec\<u8> | Attestation of originalMessage                  |
+| newMintRecipient     |  Pubkey  | Address of mint recipient on destination domain |
+| newDestinationCaller |  Pubkey  | Caller on the destination domain                |
 
 `handleReceiveMessage`
 
@@ -406,9 +408,9 @@ Add the TokenMessenger for a remote domain.
 
 Remove the TokenMessenger for a remote domain.
 
-| Parameter | Type | Description                     |
-| --------- | :--: | ------------------------------- |
-| domain    | u32  | Domain of remote TokenMessenger |
+| Parameter | Type | Description |
+| --------- | :--: | ----------- |
+| N/A       |      |             |
 
 ### **State**
 
@@ -429,10 +431,10 @@ Stores TokenMessenger configuration.
 
 Stores information about TokenMessenger on remote domain.
 
-| Field          |  Type  | Description                      |
-| -------------- | :----: | -------------------------------- |
-| domain         |  u32   | Domain of remote TokenMessenger  |
-| tokenMessenger | Pubkey | Address of remote TokenMessenger |
+| Field          |  Type  | Description                           |
+| -------------- | :----: | ------------------------------------- |
+| domain         |  u32   | Domain of remote TokenMessenger       |
+| tokenMessenger | Pubkey | Valid TokenMessenger on remote domain |
 
 ### **Events**
 
@@ -525,23 +527,39 @@ Set the maximum burn amount per message.
 | ------------------- | ---- | ------------------------------- |
 | burnLimitPerMessage | u64  | Maximum burn amount per message |
 
+`addLocalToken`
+
+Add a new local token.
+
+| Parameter | Type | Description |
+| --------- | :--: | ----------- |
+| N/A       |      |             |
+
+`removeLocalToken`
+
+Remove local token.
+
+| Parameter | Type | Description |
+| --------- | :--: | ----------- |
+| N/A       |      |             |
+
 `linkTokenPair`
 
 Link supported pair of local and remote tokens.
 
-| Parameter    |  Type   | Description          |
-| ------------ | :-----: | -------------------- |
-| remoteDomain |   u32   | Remote domain        |
-| remoteToken  | Vec<u8> | Remote token address |
+| Parameter    |  Type  | Description          |
+| ------------ | :----: | -------------------- |
+| remoteDomain |  u32   | Remote domain        |
+| remoteToken  | Pubkey | Remote token address |
+| localToken   | Pubkey | Local token address  |
 
 `unlinkTokenPair`
 
 Unlink a pair of local and remote tokens.
 
-| Parameter    |  Type   | Description          |
-| ------------ | :-----: | -------------------- |
-| remoteDomain |   u32   | Remote domain        |
-| remoteToken  | Vec<u8> | Remote token address |
+| Parameter | Type | Description |
+| --------- | :--: | ----------- |
+| N/A       |      |             |
 
 `pause`
 
@@ -567,26 +585,35 @@ Resume TokenMinter.
 
 Stores TokenMinter configuration and records stats.
 
-| Field               |  Type  | Description                                                             |
-| ------------------- | :----: | ----------------------------------------------------------------------- |
-| tokenController     | Pubkey | Authority to manage token address mappings, and per-message burn limits |
-| pauser              | Pubkey | Pause / unpause authority                                               |
-| paused              |  bool  | Specifies whether the TokenMinter is paused                             |
-| burnLimitPerMessage |  u64   | Maximum burn amount per message                                         |
-| messagesSent        |  u64   | Total number of messages sent                                           |
-| messagesReceived    |  u64   | Total number of messages received                                       |
-| amountSent          |  u64   | Amount of tokens sent (burned)                                          |
-| amountReceived      |  u64   | Amount of tokens received (minted)                                      |
+| Field           |  Type  | Description                                                             |
+| --------------- | :----: | ----------------------------------------------------------------------- |
+| tokenController | Pubkey | Authority to manage token address mappings, and per-message burn limits |
+| pauser          | Pubkey | Pause / unpause authority                                               |
+| paused          |  bool  | Specifies whether the TokenMinter is paused                             |
 
-`RemoteToken`
+`TokenPair`
 
-Stores information about the token on remote domain.
+Supported mintable tokens on remote domains, mapped to their corresponding local token.
 
-| Field      |  Type  | Description              |
-| ---------- | :----: | ------------------------ |
-| domain     |  u32   | Remote domain            |
-| token      | Pubkey | Remote token address     |
-| localToken | Pubkey | Local token mint address |
+| Field        |  Type  | Description              |
+| ------------ | :----: | ------------------------ |
+| remoteDomain |  u32   | Remote domain            |
+| remoteToken  | Pubkey | Remote token address     |
+| localToken   | Pubkey | Local token mint address |
+
+`LocalToken`
+
+Supported tokens on the local domain.
+
+| Field               |  Type  | Description                        |
+| ------------------- | :----: | ---------------------------------- |
+| custody             | Pubkey | Custody token account              |
+| mint                | Pubkey | Token mint address                 |
+| burnLimitPerMessage |  u64   | Maximum burn amount per message    |
+| messagesSent        |  u64   | Total number of messages sent      |
+| messagesReceived    |  u64   | Total number of messages received  |
+| amountSent          |  u64   | Amount of tokens sent (burned)     |
+| amountReceived      |  u64   | Amount of tokens received (minted) |
 
 ### **Events**
 
@@ -629,6 +656,24 @@ Emitted when a burn limit per message is set.
 | token               | Pubkey | Token mint address         |
 | burnLimitPerMessage |  u64   | New burn limit per message |
 
+`LocalTokenAdded`
+
+Emitted when a new local token is added.
+
+| Field   |  Type  | Description           |
+| ------- | :----: | --------------------- |
+| custody | Pubkey | Custody token account |
+| mint    | Pubkey | Token mint address    |
+
+`LocalTokenRemoved`
+
+Emitted when a local token is removed.
+
+| Field   |  Type  | Description           |
+| ------- | :----: | --------------------- |
+| custody | Pubkey | Custody token account |
+| mint    | Pubkey | Token mint address    |
+
 `TokenPairLinked`
 
 Emitted when a token pair is linked.
@@ -669,39 +714,41 @@ Emitted when TokenMinter is resumed.
 
 The following table shows the permissions for calling each instruction:
 
-| module             | instruction                | permissionless | pauser | attester manager | token controller | owner | upgrade authority | MessageTransmitter |
-| ------------------ | -------------------------- | :------------: | :----: | :--------------: | :--------------: | :---: | :---------------: | :----------------: |
-| MessageTransmitter | initialize                 |                |        |                  |                  |       |         x         |                    |
-| MessageTransmitter | transferOwnership          |                |        |                  |                  |   x   |         x         |                    |
-| MessageTransmitter | acceptOwnership            |                |        |                  |                  |   x   |                   |                    |
-| MessageTransmitter | updatePauser               |                |        |                  |                  |   x   |                   |                    |
-| MessageTransmitter | updateAttesterManager      |                |        |                  |                  |   x   |                   |                    |
-| MessageTransmitter | receiveMessage             |       x        |        |                  |                  |       |                   |                    |
-| MessageTransmitter | sendMessage                |       x        |        |                  |                  |       |                   |                    |
-| MessageTransmitter | sendMessageWithCaller      |       x        |        |                  |                  |       |                   |                    |
-| MessageTransmitter | replaceMessage             |       x        |        |                  |                  |       |                   |                    |
-| MessageTransmitter | setSignatureThreshold      |                |        |        x         |                  |       |                   |                    |
-| MessageTransmitter | enableAttester             |                |        |        x         |                  |       |                   |                    |
-| MessageTransmitter | disableAttester            |                |        |        x         |                  |       |                   |                    |
-| MessageTransmitter | setMaxMessageBodySize      |                |        |                  |                  |   x   |                   |                    |
-| MessageTransmitter | pause                      |                |   x    |                  |                  |       |                   |                    |
-| MessageTransmitter | unpause                    |                |   x    |                  |                  |       |                   |                    |
-| TokenMessenger     | initialize                 |                |        |                  |                  |       |         x         |                    |
-| TokenMessenger     | transferOwnership          |                |        |                  |                  |   x   |         x         |                    |
-| TokenMessenger     | acceptOwnership            |                |        |                  |                  |   x   |                   |                    |
-| TokenMessenger     | depositForBurn             |       x        |        |                  |                  |       |                   |                    |
-| TokenMessenger     | depositForBurnWithCaller   |       x        |        |                  |                  |       |                   |                    |
-| TokenMessenger     | replaceDepositForBurn      |       x        |        |                  |                  |       |                   |                    |
-| TokenMessenger     | handleReceiveMessage       |                |        |                  |                  |       |                   |         x          |
-| TokenMessenger     | addRemoteTokenMessenger    |                |        |                  |                  |   x   |                   |                    |
-| TokenMessenger     | removeRemoteTokenMessenger |                |        |                  |                  |   x   |                   |                    |
-| TokenMinter        | setTokenController         |                |        |                  |                  |   x   |                   |                    |
-| TokenMinter        | updatePauser               |                |        |                  |                  |   x   |                   |                    |
-| TokenMinter        | setMaxBurnAmountPerMessage |                |        |                  |        x         |       |                   |                    |
-| TokenMinter        | linkTokenPair              |                |        |                  |        x         |       |                   |                    |
-| TokenMinter        | unlinkTokenPair            |                |        |                  |        x         |       |                   |                    |
-| TokenMinter        | pause                      |                |   x    |                  |                  |       |                   |                    |
-| TokenMinter        | unpause                    |                |   x    |                  |                  |       |                   |                    |
+| module             | instruction                | permissionless | pauser | attester manager | token controller | owner | upgrade authority | program (e.g. TokenMessenger) | MessageTransmitter |
+| ------------------ | -------------------------- | :------------: | :----: | :--------------: | :--------------: | :---: | :---------------: | :---------------------------: | :----------------: |
+| MessageTransmitter | initialize                 |                |        |                  |                  |       |         x         |                               |                    |
+| MessageTransmitter | transferOwnership          |                |        |                  |                  |   x   |                   |                               |                    |
+| MessageTransmitter | acceptOwnership            |                |        |                  |                  |   x   |                   |                               |                    |
+| MessageTransmitter | updatePauser               |                |        |                  |                  |   x   |                   |                               |                    |
+| MessageTransmitter | updateAttesterManager      |                |        |                  |                  |   x   |                   |                               |                    |
+| MessageTransmitter | receiveMessage             |       x        |        |                  |                  |       |                   |                               |                    |
+| MessageTransmitter | sendMessage                |                |        |                  |                  |       |                   |               x               |                    |
+| MessageTransmitter | sendMessageWithCaller      |                |        |                  |                  |       |                   |               x               |                    |
+| MessageTransmitter | replaceMessage             |                |        |                  |                  |       |                   |               x               |                    |
+| MessageTransmitter | setSignatureThreshold      |                |        |        x         |                  |       |                   |                               |                    |
+| MessageTransmitter | enableAttester             |                |        |        x         |                  |       |                   |                               |                    |
+| MessageTransmitter | disableAttester            |                |        |        x         |                  |       |                   |                               |                    |
+| MessageTransmitter | setMaxMessageBodySize      |                |        |                  |                  |   x   |                   |                               |                    |
+| MessageTransmitter | pause                      |                |   x    |                  |                  |       |                   |                               |                    |
+| MessageTransmitter | unpause                    |                |   x    |                  |                  |       |                   |                               |                    |
+| TokenMessenger     | initialize                 |                |        |                  |                  |       |         x         |                               |                    |
+| TokenMessenger     | transferOwnership          |                |        |                  |                  |   x   |                   |                               |                    |
+| TokenMessenger     | acceptOwnership            |                |        |                  |                  |   x   |                   |                               |                    |
+| TokenMessenger     | depositForBurn             |       x        |        |                  |                  |       |                   |                               |                    |
+| TokenMessenger     | depositForBurnWithCaller   |       x        |        |                  |                  |       |                   |                               |                    |
+| TokenMessenger     | replaceDepositForBurn      |       x        |        |                  |                  |       |                   |                               |                    |
+| TokenMessenger     | handleReceiveMessage       |                |        |                  |                  |       |                   |                               |         x          |
+| TokenMessenger     | addRemoteTokenMessenger    |                |        |                  |                  |   x   |                   |                               |                    |
+| TokenMessenger     | removeRemoteTokenMessenger |                |        |                  |                  |   x   |                   |                               |                    |
+| TokenMinter        | setTokenController         |                |        |                  |                  |   x   |                   |                               |                    |
+| TokenMinter        | updatePauser               |                |        |                  |                  |   x   |                   |                               |                    |
+| TokenMinter        | setMaxBurnAmountPerMessage |                |        |                  |        x         |       |                   |                               |                    |
+| TokenMinter        | addLocalToken              |                |        |                  |        x         |       |                   |                               |                    |
+| TokenMinter        | removeLocalToken           |                |        |                  |        x         |       |                   |                               |                    |
+| TokenMinter        | linkTokenPair              |                |        |                  |        x         |       |                   |                               |                    |
+| TokenMinter        | unlinkTokenPair            |                |        |                  |        x         |       |                   |                               |                    |
+| TokenMinter        | pause                      |                |   x    |                  |                  |       |                   |                               |                    |
+| TokenMinter        | unpause                    |                |   x    |                  |                  |       |                   |                               |                    |
 
 ## Audits
 
