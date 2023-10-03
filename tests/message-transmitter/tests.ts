@@ -201,5 +201,6 @@ describe("message_transmitter", () => {
 
     await tc.enableAttester(attester2);
     await tc.setSignatureThreshold(2);
+    await tc.updateAttesterManager(tc.provider.wallet.publicKey);
   });
 });

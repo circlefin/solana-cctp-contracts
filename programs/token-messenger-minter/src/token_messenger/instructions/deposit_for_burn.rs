@@ -150,14 +150,14 @@ pub fn deposit_for_burn_helper(
     let nonce = if destination_caller == &Pubkey::default() {
         let cpi_params = SendMessageParams {
             destination_domain,
-            recipient: *mint_recipient,
+            recipient: ctx.accounts.remote_token_messenger.token_messenger,
             message_body: burn_message,
         };
         message_transmitter::cpi::send_message(cpi_ctx, cpi_params)?.get()
     } else {
         let cpi_params = SendMessageWithCallerParams {
             destination_domain,
-            recipient: *mint_recipient,
+            recipient: ctx.accounts.remote_token_messenger.token_messenger,
             destination_caller: *destination_caller,
             message_body: burn_message,
         };

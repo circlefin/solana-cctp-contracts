@@ -445,6 +445,38 @@ export class TestClient {
       .rpc();
   };
 
+  enableAttester = async (newAttester: PublicKey) => {
+    await this.messageTransmitterProgram.methods
+      .enableAttester({ newAttester })
+      .accounts({
+        attesterManager: this.provider.wallet.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  };
+
+  disableAttester = async (attester: PublicKey) => {
+    await this.messageTransmitterProgram.methods
+      .disableAttester({ attester })
+      .accounts({
+        attesterManager: this.provider.wallet.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  };
+
+  setSignatureThreshold = async (newSignatureThreshold: number) => {
+    await this.messageTransmitterProgram.methods
+      .setSignatureThreshold({ newSignatureThreshold })
+      .accounts({
+        attesterManager: this.provider.wallet.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+      })
+      .rpc();
+  };
+
   receiveMessage = async (
     remoteDomain: number,
     remoteToken: PublicKey,
