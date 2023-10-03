@@ -65,7 +65,7 @@ pub struct InitializeParams {
 
 // Instruction handler
 pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) -> Result<()> {
-    crate::utils::validate_upgrade_authority(
+    message_transmitter::utils::validate_upgrade_authority::<program::TokenMessengerMinter>(
         ctx.accounts.upgrade_authority.key(),
         &ctx.accounts
             .token_messenger_minter_program_data

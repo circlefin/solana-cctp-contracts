@@ -57,7 +57,7 @@ pub struct InitializeParams {
 
 // Instruction handler
 pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) -> Result<()> {
-    utils::validate_upgrade_authority(
+    utils::validate_upgrade_authority::<program::MessageTransmitter>(
         ctx.accounts.upgrade_authority.key(),
         &ctx.accounts
             .message_transmitter_program_data

@@ -1,44 +1,33 @@
 //! Common utility functions.
 
-#[cfg(not(feature = "test"))]
-use crate::{error::MessageTransmitterError, program::MessageTransmitter};
-//
 use {crate::error::MathError, anchor_lang::prelude::*, std::fmt::Display};
 
 pub const DISCRIMINATOR_SIZE: usize = 8;
 
-#[cfg(not(feature = "test"))]
-/// Checks that provided upgrade_authority is indeed the upgrade authority for the given program
-pub fn validate_upgrade_authority(
-    upgrade_authority: Pubkey,
-    message_transmitter_program_data: &AccountInfo,
-    message_transmitter_program: &AccountInfo,
+pub fn validate_upgrade_authority<T: anchor_lang::Id>(
+    expected_upgrade_authority: Pubkey,
+    program_data: &AccountInfo,
+    program: &AccountInfo,
 ) -> Result<()> {
-    let program: Program<MessageTransmitter> = Program::try_from(message_transmitter_program)?;
-    let program_data: Account<ProgramData> = Account::try_from(message_transmitter_program_data)?;
+    let program: Program<T> = Program::try_from(program)?;
+    if let Some(programdata_address) = program.programdata_address()? {
+        require_keys_eq!(
+            programdata_address,
+            program_data.key(),
+            ErrorCode::InvalidProgramExecutable
+        );
+        let program_data: Account<ProgramData> = Account::try_from(program_data)?;
+        if let Some(current_upgrade_authority) = program_data.upgrade_authority_address {
+            if current_upgrade_authority != Pubkey::default() {
+                require_keys_eq!(
+                    current_upgrade_authority,
+                    expected_upgrade_authority,
+                    ErrorCode::ConstraintOwner
+                );
+            }
+        }
+    } // otherwise not upgradeable
 
-    // should be also checked in Program::try_from()
-    if message_transmitter_program.owner != &crate::ID {
-        return Err(Error::from(ErrorCode::AccountOwnedByWrongProgram)
-            .with_pubkeys((*message_transmitter_program.owner, crate::ID)));
-    }
-
-    require!(
-        program.programdata_address()? == Some(program_data.key())
-            && program_data.upgrade_authority_address == Some(upgrade_authority),
-        MessageTransmitterError::InvalidAuthority
-    );
-
-    Ok(())
-}
-
-#[cfg(feature = "test")]
-/// Test version does nothing
-pub fn validate_upgrade_authority(
-    _authority: Pubkey,
-    _message_transmitter_program_data: &AccountInfo,
-    _message_transmitter_program: &AccountInfo,
-) -> Result<()> {
     Ok(())
 }
 

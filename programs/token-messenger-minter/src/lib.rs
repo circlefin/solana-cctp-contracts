@@ -4,7 +4,6 @@
 
 pub mod token_messenger;
 pub mod token_minter;
-pub mod utils;
 
 use {anchor_lang::prelude::*, token_messenger::*, token_minter::*};
 
