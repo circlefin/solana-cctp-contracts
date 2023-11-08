@@ -31,11 +31,15 @@ pub fn transfer_ownership(
     ctx: Context<TransferOwnershipContext>,
     params: &TransferOwnershipParams,
 ) -> Result<()> {
-    require_keys_neq!(
-        params.new_owner,
+    if [
         Pubkey::default(),
-        TokenMessengerError::InvalidOwner
-    );
+        ctx.accounts.owner.key(),
+        ctx.accounts.token_messenger.pending_owner,
+    ]
+    .contains(&params.new_owner)
+    {
+        return err!(TokenMessengerError::InvalidOwner);
+    }
 
     let token_messenger = ctx.accounts.token_messenger.as_mut();
 

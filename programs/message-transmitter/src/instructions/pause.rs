@@ -24,6 +24,11 @@ pub struct PauseParams {}
 
 // Instruction handler
 pub fn pause(ctx: Context<PauseContext>, _params: &PauseParams) -> Result<()> {
+    require!(
+        !ctx.accounts.message_transmitter.paused,
+        MessageTransmitterError::InvalidMessageTransmitterState
+    );
+
     ctx.accounts.message_transmitter.paused = true;
 
     emit!(Pause {});

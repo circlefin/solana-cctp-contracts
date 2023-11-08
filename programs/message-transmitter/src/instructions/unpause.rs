@@ -24,6 +24,11 @@ pub struct UnpauseParams {}
 
 // Instruction handler
 pub fn unpause(ctx: Context<UnpauseContext>, _params: &UnpauseParams) -> Result<()> {
+    require!(
+        ctx.accounts.message_transmitter.paused,
+        MessageTransmitterError::InvalidMessageTransmitterState
+    );
+
     ctx.accounts.message_transmitter.paused = false;
 
     emit!(Unpause {});

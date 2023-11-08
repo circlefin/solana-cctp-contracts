@@ -31,6 +31,11 @@ pub fn update_pauser(ctx: Context<UpdatePauserContext>, params: &UpdatePauserPar
         Pubkey::default(),
         MessageTransmitterError::InvalidPauser
     );
+    require_keys_neq!(
+        params.new_pauser,
+        ctx.accounts.message_transmitter.pauser,
+        MessageTransmitterError::InvalidPauser
+    );
 
     ctx.accounts.message_transmitter.pauser = params.new_pauser;
 

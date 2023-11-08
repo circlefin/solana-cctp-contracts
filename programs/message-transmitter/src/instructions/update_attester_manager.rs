@@ -36,6 +36,11 @@ pub fn update_attester_manager(
         Pubkey::default(),
         MessageTransmitterError::InvalidAttesterManager
     );
+    require_keys_neq!(
+        params.new_attester_manager,
+        ctx.accounts.message_transmitter.attester_manager,
+        MessageTransmitterError::InvalidAttesterManager
+    );
 
     let previous_attester_manager = ctx.accounts.message_transmitter.attester_manager;
 
