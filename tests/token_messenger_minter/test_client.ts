@@ -496,7 +496,7 @@ export class TestClient {
 
     let authorityPda = this.findProgramAddress(
       "message_transmitter_authority",
-      null,
+      [this.program.programId],
       this.messageTransmitterProgram.programId
     ).publicKey;
 

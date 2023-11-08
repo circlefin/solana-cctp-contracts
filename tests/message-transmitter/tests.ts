@@ -40,7 +40,6 @@ describe("message_transmitter", () => {
       enabledAttesters: [attester1],
       maxMessageBodySize: "200",
       nextAvailableNonce: "1",
-      authorityBump: tc.authorityPda.bump,
     };
 
     let messageTransmitter = await tc.program.account.messageTransmitter.fetch(

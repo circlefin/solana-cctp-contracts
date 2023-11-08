@@ -22,7 +22,7 @@ use {
 
 // Instruction accounts
 #[derive(Accounts)]
-#[instruction(amount: u64, destination_domain: u32)]
+#[instruction(params: DepositForBurnParams)]
 pub struct DepositForBurnContext<'info> {
     #[account()]
     pub owner: Signer<'info>,
@@ -48,7 +48,7 @@ pub struct DepositForBurnContext<'info> {
     pub token_messenger: Box<Account<'info, TokenMessenger>>,
 
     #[account(
-        constraint = destination_domain == remote_token_messenger.domain @ TokenMessengerError::InvalidDestinationDomain
+        constraint = params.destination_domain == remote_token_messenger.domain @ TokenMessengerError::InvalidDestinationDomain
     )]
     pub remote_token_messenger: Box<Account<'info, RemoteTokenMessenger>>,
 

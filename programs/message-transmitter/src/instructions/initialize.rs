@@ -20,13 +20,6 @@ pub struct InitializeContext<'info> {
     #[account()]
     pub upgrade_authority: Signer<'info>,
 
-    /// CHECK: empty PDA, used to check that handleReceiveMessage was called by MessageTransmitter
-    #[account(
-        seeds = [b"message_transmitter_authority"],
-        bump
-    )]
-    pub authority_pda: AccountInfo<'info>,
-
     // MessageTransmitter state account
     #[account(
         init,
@@ -79,10 +72,6 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
     message_transmitter.enabled_attesters.push(params.attester);
     message_transmitter.max_message_body_size = params.max_message_body_size;
     message_transmitter.next_available_nonce = 1;
-    message_transmitter.authority_bump = *ctx
-        .bumps
-        .get("authority_pda")
-        .ok_or(ProgramError::InvalidSeeds)?;
 
     // validate the state
     require!(

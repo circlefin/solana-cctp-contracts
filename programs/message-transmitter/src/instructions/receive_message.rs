@@ -17,7 +17,7 @@ use {
 
 // Instruction accounts
 #[derive(Accounts)]
-#[instruction(message: Vec<u8>)]
+#[instruction(params: ReceiveMessageParams)]
 pub struct ReceiveMessageContext<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -27,8 +27,8 @@ pub struct ReceiveMessageContext<'info> {
 
     /// CHECK: empty PDA, used to check that handleReceiveMessage was called by MessageTransmitter
     #[account(
-        seeds = [b"message_transmitter_authority"],
-        bump = message_transmitter.authority_bump,
+        seeds = [b"message_transmitter_authority", receiver.key().as_ref()],
+        bump,
     )]
     pub authority_pda: AccountInfo<'info>,
 
@@ -42,8 +42,8 @@ pub struct ReceiveMessageContext<'info> {
         space = utils::DISCRIMINATOR_SIZE + UsedNonces::INIT_SPACE,
         seeds = [
             b"used_nonces", 
-            Message::new(message_transmitter.version, &message)?.source_domain()?.to_string().as_bytes(),
-            UsedNonces::first_nonce(Message::new(message_transmitter.version, &message)?.nonce()?)?.to_string().as_bytes()
+            Message::new(message_transmitter.version, &params.message)?.source_domain()?.to_string().as_bytes(),
+            UsedNonces::first_nonce(Message::new(message_transmitter.version, &params.message)?.nonce()?)?.to_string().as_bytes()
         ],
         bump
     )]
@@ -71,6 +71,7 @@ pub struct HandleReceiveMessageParams {
     pub remote_domain: u32,
     pub sender: Pubkey,
     pub message_body: Vec<u8>,
+    pub authority_bump: u8,
 }
 
 // Instruction handler
@@ -135,27 +136,29 @@ pub fn receive_message<'info>(
     used_nonces.use_nonce(nonce)?;
 
     // CPI into recipient
+    let receiver_key = ctx.accounts.receiver.key();
     //TODO: generate better test
     #[cfg(not(feature = "test"))]
     require_keys_eq!(
         message.recipient()?,
-        ctx.accounts.receiver.key(),
+        receiver_key,
         MessageTransmitterError::InvalidRecipientProgram
     );
 
+    let authority_bump = *ctx
+        .bumps
+        .get("authority_pda")
+        .ok_or(ProgramError::InvalidSeeds)?;
     let authority_seeds: &[&[&[u8]]] = &[&[
         b"message_transmitter_authority",
-        &[message_transmitter.authority_bump],
+        receiver_key.as_ref(),
+        &[authority_bump],
     ]];
 
     let mut accounts = Vec::with_capacity(2 + ctx.remaining_accounts.len());
     accounts.push(AccountMeta::new_readonly(
         ctx.accounts.authority_pda.key(),
         true,
-    ));
-    accounts.push(AccountMeta::new_readonly(
-        ctx.accounts.message_transmitter.key(),
-        false,
     ));
 
     for acc in ctx.remaining_accounts {
@@ -170,6 +173,7 @@ pub fn receive_message<'info>(
         remote_domain: source_domain,
         sender,
         message_body: message.message_body().to_vec(),
+        authority_bump,
     };
 
     let mut data = Vec::with_capacity(52 + message.message_body().len());
@@ -189,7 +193,6 @@ pub fn receive_message<'info>(
         &instruction,
         &[
             &[ctx.accounts.authority_pda.to_account_info()],
-            &[ctx.accounts.message_transmitter.to_account_info()],
             ctx.remaining_accounts,
         ]
         .concat(),

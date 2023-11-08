@@ -12,7 +12,7 @@ use {
 
 // Instruction accounts
 #[derive(Accounts)]
-#[instruction(domain: u32)]
+#[instruction(params: AddRemoteTokenMessengerParams)]
 pub struct AddRemoteTokenMessengerContext<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -32,7 +32,7 @@ pub struct AddRemoteTokenMessengerContext<'info> {
         space = utils::DISCRIMINATOR_SIZE + RemoteTokenMessenger::INIT_SPACE,
         seeds = [
             b"remote_token_messenger",
-            domain.to_string().as_bytes()
+            params.domain.to_string().as_bytes()
         ],
         bump
     )]

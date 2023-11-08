@@ -13,7 +13,6 @@ export class TestClient {
   program: anchor.Program<MessageTransmitter>;
   printErrors: boolean;
 
-  authorityPda: { publicKey: PublicKey; bump: number };
   messageTransmitter: { publicKey: PublicKey; bump: number };
 
   constructor() {
@@ -34,9 +33,6 @@ export class TestClient {
     this.attesterManager = Keypair.generate();
 
     // pdas
-    this.authorityPda = this.findProgramAddress(
-      "message_transmitter_authority"
-    );
     this.messageTransmitter = this.findProgramAddress("message_transmitter");
   };
 
@@ -103,7 +99,6 @@ export class TestClient {
       })
       .accounts({
         upgradeAuthority: this.provider.wallet.publicKey,
-        authorityPda: this.authorityPda.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         messageTransmitterProgramData: programData,
         messageTransmitterProgram: this.program.programId,

@@ -12,28 +12,24 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Token, TokenAccount},
-    message_transmitter::state::MessageTransmitter,
 };
 
 // Instruction accounts
 #[derive(Accounts)]
-#[instruction(remote_domain: u32, sender: Pubkey, message_body: Vec<u8>)]
+#[instruction(params: HandleReceiveMessageParams)]
 pub struct HandleReceiveMessageContext<'info> {
     #[account(
-        seeds = [b"message_transmitter_authority"],
-        bump = message_transmitter.authority_bump,
+        seeds = [b"message_transmitter_authority", crate::ID.as_ref()],
+        bump = params.authority_bump,
         seeds::program = message_transmitter::ID
     )]
     pub authority_pda: Signer<'info>,
 
     #[account()]
-    pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
-
-    #[account()]
     pub token_messenger: Box<Account<'info, TokenMessenger>>,
 
     #[account(
-        constraint = remote_domain == remote_token_messenger.domain @ TokenMessengerError::InvalidDestinationDomain
+        constraint = params.remote_domain == remote_token_messenger.domain @ TokenMessengerError::InvalidDestinationDomain
     )]
     pub remote_token_messenger: Box<Account<'info, RemoteTokenMessenger>>,
 
@@ -54,8 +50,8 @@ pub struct HandleReceiveMessageContext<'info> {
         constraint = token_pair.local_token == local_token.key() @ TokenMessengerError::InvalidTokenPair,
         seeds = [
             b"token_pair",
-            remote_domain.to_string().as_bytes(),
-            BurnMessage::new(token_messenger.message_body_version, &message_body)?.burn_token()?.as_ref()
+            params.remote_domain.to_string().as_bytes(),
+            BurnMessage::new(token_messenger.message_body_version, &params.message_body)?.burn_token()?.as_ref()
         ],
         bump = token_pair.bump,
     )]
@@ -90,6 +86,7 @@ pub struct HandleReceiveMessageParams {
     pub remote_domain: u32,
     pub sender: Pubkey,
     pub message_body: Vec<u8>,
+    pub authority_bump: u8,
 }
 
 // Instruction handler

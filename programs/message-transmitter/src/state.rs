@@ -26,7 +26,6 @@ pub struct MessageTransmitter {
     pub enabled_attesters: Vec<Pubkey>,
     pub max_message_body_size: u64,
     pub next_available_nonce: u64,
-    pub authority_bump: u8,
 }
 
 #[account]

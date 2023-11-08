@@ -12,7 +12,7 @@ use {
 
 // Instruction accounts
 #[derive(Accounts)]
-#[instruction(local_token: Pubkey, remote_domain: u32, remote_token: Pubkey)]
+#[instruction(params: LinkTokenPairParams)]
 pub struct LinkTokenPairContext<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -32,8 +32,8 @@ pub struct LinkTokenPairContext<'info> {
         space = utils::DISCRIMINATOR_SIZE + TokenPair::INIT_SPACE,
         seeds = [
             b"token_pair",
-            remote_domain.to_string().as_bytes(),
-            remote_token.as_ref()
+            params.remote_domain.to_string().as_bytes(),
+            params.remote_token.as_ref()
         ],
         bump
     )]
