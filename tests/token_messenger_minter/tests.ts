@@ -23,9 +23,7 @@ describe("token_messenger_minter", () => {
   let remoteToken = new PublicKey(
     "7rSe3oH1TbF92kxTv9UFETJ89gy7HmxTss9gN4Wp8KnF"
   );
-  let mintRecipient = new PublicKey(
-    "4k7otob3oN7BWRBW3JAkHXuWEjUhSbJHgBByZD6BE5Si"
-  );
+  let mintRecipient;
   let destinationCaller = new PublicKey(
     "DebXB8PvwxzhanvMoDkS86aajBNnCEF3s2ieT5cFfJNh"
   );
@@ -293,6 +291,8 @@ describe("token_messenger_minter", () => {
       tc.messageTransmitterProgram
     );
 
+    mintRecipient = tc.userTokenAccount;
+
     await tc.depositForBurn(
       new BN(20),
       remoteDomain,
@@ -395,7 +395,7 @@ describe("token_messenger_minter", () => {
     await tc.messageTransmitterProgram.removeEventListener(listener2);
   });
 
-  it("receiveMessage", async () => {
+  it("endToEnd", async () => {
     // change remote domain to 0 to match the message
     await tc.removeRemoteTokenMessenger(remoteTokenMessenger);
 
@@ -405,92 +405,6 @@ describe("token_messenger_minter", () => {
     ]).publicKey;
     await tc.addRemoteTokenMessenger(remoteDomain, remoteTokenMessenger);
 
-    // link token pair
-    remoteToken = new PublicKey("1111111111113EsMD5n1VA94D2fALdb1SAKLam8j");
-    await tc.linkTokenPair(remoteDomain, remoteToken);
-
-    // fund custody
-    await spl.mintToChecked(
-      tc.provider.connection,
-      tc.owner,
-      tc.localTokenMint.publicKey,
-      tc.custodyTokenAccount.publicKey,
-      tc.owner,
-      messageAmount,
-      9
-    );
-
-    // receive message
-    let [event1, listener1] = tc.scheduleEvent(
-      "MessageReceived",
-      tc.messageTransmitterProgram
-    );
-    let [event2, listener2] = tc.scheduleEvent("MintAndWithdraw");
-
-    await tc.receiveMessage(
-      remoteDomain,
-      remoteToken,
-      messageNonce,
-      message,
-      attestation,
-      remoteTokenMessenger
-    );
-
-    let messageReceived = await event1;
-    let messageReceivedExpected = {
-      caller: tc.provider.wallet.publicKey,
-      sourceDomain: messageSourceDomain,
-      nonce: messageNonce.toString(),
-      sender: "1111111111113dvMv4ZCzFdjMXrQ3mrKCG7cjKA4",
-      messageBody: Buffer.from([
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 160, 184, 105, 145, 198,
-        33, 139, 54, 193, 209, 157, 74, 46, 158, 176, 206, 54, 6, 235, 72, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 251, 43, 252, 54, 138, 126, 223, 213, 26,
-        162, 203, 236, 81, 58, 213, 14, 222, 167, 78, 132, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 235,
-        194, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 251, 43, 252, 54, 138, 126,
-        223, 213, 26, 162, 203, 236, 81, 58, 213, 14, 222, 167, 78, 132,
-      ]),
-    };
-    expect(JSON.stringify(messageReceived)).to.equal(
-      JSON.stringify(messageReceivedExpected)
-    );
-
-    let mintAndWithdraw = await event2;
-    let mintAndWithdrawExpected = {
-      mintRecipient: "1111111111114VxToarANMjkwzH4g9fm2kbLkGTV",
-      amount: messageAmount.toString(),
-      mintToken: tc.localTokenMint.publicKey,
-    };
-    expect(JSON.stringify(mintAndWithdraw)).to.equal(
-      JSON.stringify(mintAndWithdrawExpected)
-    );
-
-    await tc.messageTransmitterProgram.removeEventListener(listener1);
-    await tc.program.removeEventListener(listener2);
-
-    localTokenExpected = {
-      custody: tc.custodyTokenAccount.publicKey,
-      mint: tc.localTokenMint.publicKey,
-      burnLimitPerMessage: "100",
-      messagesSent: "2",
-      messagesReceived: "1",
-      amountSent: "40",
-      amountReceived: "200000000",
-      bump: tc.localToken.bump,
-      custodyBump: tc.custodyTokenAccount.bump,
-    };
-
-    let localTokenState = await tc.program.account.localToken.fetch(
-      tc.localToken.publicKey
-    );
-
-    expect(JSON.stringify(localTokenState)).to.equal(
-      JSON.stringify(localTokenExpected)
-    );
-  });
-
-  it("endToEnd", async () => {
     // update attesters
     const privateKey1 = Keypair.generate().publicKey.toBuffer();
     const publicKey1 = ethutil.privateToAddress(privateKey1);
@@ -638,9 +552,9 @@ describe("token_messenger_minter", () => {
       mint: tc.localTokenMint.publicKey,
       burnLimitPerMessage: "100",
       messagesSent: "3",
-      messagesReceived: "2",
+      messagesReceived: "1",
       amountSent: "60",
-      amountReceived: "200000020",
+      amountReceived: "20",
       bump: tc.localToken.bump,
       custodyBump: tc.custodyTokenAccount.bump,
     };

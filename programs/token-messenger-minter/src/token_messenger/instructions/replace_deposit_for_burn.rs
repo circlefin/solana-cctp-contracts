@@ -66,7 +66,7 @@ pub fn replace_deposit_for_burn(
     #[cfg(not(feature = "test"))]
     require_keys_eq!(
         original_message_sender,
-        ctx.accounts.token_messenger_minter_program.key(),
+        ctx.accounts.owner.key(),
         TokenMessengerError::InvalidSender
     );
 

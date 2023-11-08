@@ -113,6 +113,12 @@ pub fn handle_receive_message(
     let mint_recipient = burn_message.mint_recipient()?;
     let amount = burn_message.amount()?;
 
+    require_keys_eq!(
+        ctx.accounts.recipient_token_account.key(),
+        mint_recipient,
+        TokenMessengerError::InvalidMintRecipient
+    );
+
     ctx.accounts.token_minter.transfer(
         ctx.accounts.custody_token_account.to_account_info(),
         ctx.accounts.recipient_token_account.to_account_info(),
