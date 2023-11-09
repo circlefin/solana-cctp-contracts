@@ -1,9 +1,12 @@
 import * as anchor from "@coral-xyz/anchor";
+import * as ethutil from "ethereumjs-util";
 import { TokenMessengerMinter } from "../../target/types/token_messenger_minter";
 import { MessageTransmitter } from "../../target/types/message_transmitter";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import BN from "bn.js";
+
+const SIGNATURE_LENGTH = 65;
 
 export class TestClient {
   owner: Keypair;
@@ -207,25 +210,33 @@ export class TestClient {
     domain: number,
     tokenMessenger: PublicKey
   ) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [domain.toString()]
+    ).publicKey;
     await this.program.methods
       .addRemoteTokenMessenger({ domain, tokenMessenger })
       .accounts({
         owner: this.owner.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
-        remoteTokenMessenger: tokenMessenger,
+        remoteTokenMessenger,
         systemProgram: SystemProgram.programId,
       })
       .signers([this.owner])
       .rpc();
   };
 
-  removeRemoteTokenMessenger = async (tokenMessenger: PublicKey) => {
+  removeRemoteTokenMessenger = async (domain: number) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [domain.toString()]
+    ).publicKey;
     await this.program.methods
       .removeRemoteTokenMessenger({})
       .accounts({
         owner: this.owner.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
-        remoteTokenMessenger: tokenMessenger,
+        remoteTokenMessenger,
       })
       .signers([this.owner])
       .rpc();
@@ -361,9 +372,12 @@ export class TestClient {
   depositForBurn = async (
     amount: BN,
     destinationDomain: number,
-    mintRecipient: PublicKey,
-    remoteTokenMessenger: PublicKey
+    mintRecipient: PublicKey
   ) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [destinationDomain.toString()]
+    ).publicKey;
     await this.program.methods
       .depositForBurn({
         amount,
@@ -392,9 +406,12 @@ export class TestClient {
     amount: BN,
     destinationDomain: number,
     mintRecipient: PublicKey,
-    destinationCaller: PublicKey,
-    remoteTokenMessenger: PublicKey
+    destinationCaller: PublicKey
   ) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [destinationDomain.toString()]
+    ).publicKey;
     await this.program.methods
       .depositForBurnWithCaller({
         amount,
@@ -482,8 +499,7 @@ export class TestClient {
     remoteToken: PublicKey,
     nonce: bigint,
     message: number[],
-    attestation: number[],
-    remoteTokenMessenger: PublicKey
+    attestation: number[]
   ) => {
     let maxNonces = 6400;
     const firstNonce =
@@ -504,6 +520,11 @@ export class TestClient {
       remoteDomain.toString(),
       remoteToken,
     ]).publicKey;
+
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [remoteDomain.toString()]
+    ).publicKey;
 
     let accountMetas = [];
     accountMetas.push({
@@ -566,5 +587,95 @@ export class TestClient {
     } catch (err) {
       console.log(err);
     }
+  };
+
+  createBurnMessageBody = (
+    burnVersion: number,
+    burnToken: PublicKey,
+    mintRecipient: PublicKey,
+    depositor: PublicKey,
+    amount: bigint
+  ) => {
+    return Buffer.concat([
+      new BN(burnVersion).toArrayLike(Buffer, "be", 4),
+      burnToken.toBytes(),
+      mintRecipient.toBytes(),
+      // Encoding for amount starts with mandatory 24 zero-bytes.
+      new BN(0).toArrayLike(Buffer, "be", 24),
+      new BN(amount).toArrayLike(Buffer, "be", 8),
+      depositor.toBytes(),
+    ]);
+  };
+
+  createBurnMessage = (
+    version: number,
+    sourceDomain: number,
+    destinationDomain: number,
+    nonce: number,
+    sender: PublicKey,
+    recipient: PublicKey,
+    destinationCaller: PublicKey,
+    // The below params are burn_message specific.
+    burnVersion: number,
+    burnToken: PublicKey,
+    mintRecipient: PublicKey,
+    depositor: PublicKey,
+    amount: bigint
+  ) => {
+    let burnMessageBuffer = this.createBurnMessageBody(
+      burnVersion,
+      burnToken,
+      mintRecipient,
+      depositor,
+      amount
+    );
+    return Buffer.concat([
+      new BN(version).toArrayLike(Buffer, "be", 4),
+      new BN(sourceDomain).toArrayLike(Buffer, "be", 4),
+      new BN(destinationDomain).toArrayLike(Buffer, "be", 4),
+      new BN(nonce).toArrayLike(Buffer, "be", 8),
+      sender.toBytes(),
+      recipient.toBytes(),
+      destinationCaller.toBytes(),
+      burnMessageBuffer,
+    ]);
+  };
+
+  attest = (message: Buffer, attesterPrivateKeys: Buffer[]) => {
+    // Order the attesters by increasing pubkey.
+    attesterPrivateKeys.sort((key1, key2) => {
+      let publicKey1 = ethutil.privateToAddress(key1);
+      let publicKey2 = ethutil.privateToAddress(key2);
+      for (let i = 0; i < publicKey1.length; ++i) {
+        if (publicKey1[i] < publicKey2[i]) {
+          return -1;
+        }
+        if (publicKey1[i] > publicKey2[i]) {
+          return 1;
+        }
+      }
+      return 0;
+    });
+    const messageHash = ethutil.keccak256(message);
+    let attestation = Buffer.alloc(
+      SIGNATURE_LENGTH * attesterPrivateKeys.length
+    );
+    let writeOffset = 0;
+    for (const attesterPrivateKey of attesterPrivateKeys) {
+      const ecdsaSignature = ethutil.ecsign(messageHash, attesterPrivateKey);
+      const signatureBytes = Buffer.from(
+        ethutil
+          .toRpcSig(ecdsaSignature.v, ecdsaSignature.r, ecdsaSignature.s)
+          .slice(2),
+        "hex"
+      );
+      writeOffset += signatureBytes.copy(
+        attestation,
+        writeOffset,
+        0,
+        SIGNATURE_LENGTH
+      );
+    }
+    return attestation;
   };
 }

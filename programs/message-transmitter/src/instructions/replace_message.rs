@@ -51,8 +51,6 @@ pub fn replace_message(
     message_transmitter
         .verify_attestation_signatures(&message.hash(), &params.original_attestation)?;
 
-    //TODO: generate better test
-    #[cfg(not(feature = "test"))]
     require_keys_eq!(
         message.sender()?,
         ctx.accounts.sender_program.key(),

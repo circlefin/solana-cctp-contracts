@@ -94,8 +94,6 @@ pub fn handle_receive_message(
     ctx: Context<HandleReceiveMessageContext>,
     params: &HandleReceiveMessageParams,
 ) -> Result<()> {
-    //TODO: generate better test
-    #[cfg(not(feature = "test"))]
     require_eq!(
         params.sender,
         ctx.accounts.remote_token_messenger.token_messenger,

@@ -62,8 +62,6 @@ pub fn replace_deposit_for_burn(
         BurnMessage::new(token_messenger.message_body_version, message.message_body())?;
 
     let original_message_sender = burn_message.message_sender()?;
-    //TODO: generate better test
-    #[cfg(not(feature = "test"))]
     require_keys_eq!(
         original_message_sender,
         ctx.accounts.owner.key(),

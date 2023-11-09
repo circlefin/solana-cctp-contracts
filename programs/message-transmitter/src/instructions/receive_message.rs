@@ -90,16 +90,12 @@ pub fn receive_message<'info>(
 
     message_transmitter.verify_attestation_signatures(&message.hash(), &params.attestation)?;
 
-    //TODO: generate better test
-    #[cfg(not(feature = "test"))]
     require!(
         message.destination_domain()? == message_transmitter.local_domain,
         MessageTransmitterError::InvalidDestinationDomain
     );
 
     let destination_caller = message.destination_caller()?;
-    //TODO: generate better test
-    #[cfg(not(feature = "test"))]
     if destination_caller != Pubkey::default() {
         require_keys_eq!(
             destination_caller,
@@ -137,8 +133,6 @@ pub fn receive_message<'info>(
 
     // CPI into recipient
     let receiver_key = ctx.accounts.receiver.key();
-    //TODO: generate better test
-    #[cfg(not(feature = "test"))]
     require_keys_eq!(
         message.recipient()?,
         receiver_key,

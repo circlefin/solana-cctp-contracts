@@ -5,6 +5,7 @@ import { expect, assert } from "chai";
 import * as ethutil from "ethereumjs-util";
 import BN from "bn.js";
 import * as spl from "@solana/spl-token";
+import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 
 describe("token_messenger_minter", () => {
   let tc = new TestClient();
@@ -17,36 +18,54 @@ describe("token_messenger_minter", () => {
 
   let messageBodyVersion = 0;
   let remoteDomain = 123;
-  let remoteTokenMessenger = tc.findProgramAddress("remote_token_messenger", [
-    remoteDomain.toString(),
-  ]).publicKey;
-  let remoteToken = new PublicKey(
-    "7rSe3oH1TbF92kxTv9UFETJ89gy7HmxTss9gN4Wp8KnF"
-  );
+  let remoteToken = new PublicKey("1111111111113EsMD5n1VA94D2fALdb1SAKLam8j");
   let mintRecipient;
-  let destinationCaller = new PublicKey(
-    "DebXB8PvwxzhanvMoDkS86aajBNnCEF3s2ieT5cFfJNh"
-  );
+  let destinationCaller;
+  let message;
+  let messageVersion = 0;
   let messageNonce = BigInt(1098);
   let messageAmount = BigInt(200000000);
-  let messageSourceDomain = 0;
+  let messageSourceDomain = 123;
+  let sender;
+  let recipient;
+  let depositor;
 
-  let message = tc.hexToBytes(
-    "000000000000000000000003000000000000044a000000000000000000000000bd3fa81b58ba92a82136038b25adec7066af315500000000000000000000000019330d10d9cc8751218eaf51e8885d058642e08a0000000000000000000000001b067f9fdff92cc254afcf7f941617588116bd8100000000000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000fb2bfc368a7edfd51aa2cbec513ad50edea74e84000000000000000000000000000000000000000000000000000000000bebc200000000000000000000000000fb2bfc368a7edfd51aa2cbec513ad50edea74e84"
+  // Attester key values are copied from message-transmitter/tests.ts.
+  let attesterPrivateKey1 = Buffer.from(
+    "160bb136f958af14b6abc453ed1cefd323fb7c13c3d753788471a75c44127fbc",
+    "hex"
   );
-  let attester1 = new PublicKey(
-    tc.hexToBytes("E2fEfe09E74b921CbbFF229E7cD40009231501CA")
+  let attester1 = new PublicKey(ethutil.privateToAddress(attesterPrivateKey1));
+  let attesterPrivateKey2 = Buffer.from(
+    "dbdcf3e6a58e4c03f4e2c68721e2f0d3ee246482cf13edb1533a547490feea9c",
+    "hex"
   );
-  let attester2 = new PublicKey(
-    tc.hexToBytes("b0Ea8E1bE37F346C7EA7ec708834D0db18A17361")
-  );
-  let attestation = tc.hexToBytes(
-    "3a5deeba6e3a82a67a832114c8a588ab972445ed9c87bb22fd4a5792fd68ae102440cf49e09597cf1b4c48bdef8ad1f8e13929712ff9a84b31cd76971413ae2f1c2a23eed2170f3819542d465f33e0b1bdc925bc3fa8f4e3e7d0b6fc461528ad015513c8aaf8d5398c49eeee6b4160bd51f3e5cd056bef4e6fd222da2e20b7e5b01b"
-  );
+  let attester2 = new PublicKey(ethutil.privateToAddress(attesterPrivateKey2));
 
   it("initialize", async () => {
     await tc.initFixture();
     await tc.initialize(tc.tokenController.publicKey, messageBodyVersion);
+
+    destinationCaller = tc.provider.wallet.publicKey;
+    mintRecipient = tc.userTokenAccount;
+    depositor = tc.user.publicKey;
+    sender = tc.program.programId;
+    recipient = tc.program.programId;
+
+    message = tc.createBurnMessage(
+      messageVersion,
+      messageSourceDomain,
+      remoteDomain,
+      messageNonce,
+      sender,
+      recipient,
+      destinationCaller,
+      messageBodyVersion,
+      remoteToken,
+      mintRecipient,
+      depositor,
+      messageAmount
+    );
 
     let err = await tc.ensureFails(
       tc.initialize(tc.tokenController.publicKey, messageBodyVersion)
@@ -125,13 +144,16 @@ describe("token_messenger_minter", () => {
   });
 
   it("addRemoteTokenMessenger", async () => {
-    await tc.addRemoteTokenMessenger(remoteDomain, remoteTokenMessenger);
+    await tc.addRemoteTokenMessenger(remoteDomain, recipient);
 
     remoteTokenMessengerExpected = {
       domain: remoteDomain,
-      tokenMessenger: remoteTokenMessenger,
+      tokenMessenger: recipient,
     };
 
+    let remoteTokenMessenger = tc.findProgramAddress("remote_token_messenger", [
+      remoteDomain.toString(),
+    ]).publicKey;
     let remoteTokenMessengerState =
       await tc.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger);
     expect(JSON.stringify(remoteTokenMessengerState)).to.equal(
@@ -140,12 +162,15 @@ describe("token_messenger_minter", () => {
   });
 
   it("removeRemoteTokenMessenger", async () => {
-    await tc.removeRemoteTokenMessenger(remoteTokenMessenger);
+    await tc.removeRemoteTokenMessenger(remoteDomain);
+    let remoteTokenMessenger = tc.findProgramAddress("remote_token_messenger", [
+      remoteDomain.toString(),
+    ]).publicKey;
     await tc.ensureFails(
       tc.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger)
     );
 
-    await tc.addRemoteTokenMessenger(remoteDomain, remoteTokenMessenger);
+    await tc.addRemoteTokenMessenger(remoteDomain, recipient);
   });
 
   it("updatePauser", async () => {
@@ -291,24 +316,17 @@ describe("token_messenger_minter", () => {
       tc.messageTransmitterProgram
     );
 
-    mintRecipient = tc.userTokenAccount;
-
-    await tc.depositForBurn(
-      new BN(20),
-      remoteDomain,
-      mintRecipient,
-      remoteTokenMessenger
-    );
+    await tc.depositForBurn(new BN(20), remoteDomain, mintRecipient);
 
     let depositForBurn = await event1;
     let depositForBurnExpected = {
       nonce: "1",
       burnToken: tc.localTokenMint.publicKey,
       amount: "20",
-      depositor: tc.user.publicKey,
+      depositor,
       mintRecipient,
       destinationDomain: remoteDomain,
-      destinationTokenMessenger: remoteTokenMessenger,
+      destinationTokenMessenger: recipient,
       destinationCaller: PublicKey.default,
     };
     expect(JSON.stringify(depositForBurn)).to.equal(
@@ -333,8 +351,7 @@ describe("token_messenger_minter", () => {
       new BN(20),
       remoteDomain,
       mintRecipient,
-      destinationCaller,
-      remoteTokenMessenger
+      destinationCaller
     );
 
     let depositForBurn = await event1;
@@ -342,10 +359,10 @@ describe("token_messenger_minter", () => {
       nonce: "2",
       burnToken: tc.localTokenMint.publicKey,
       amount: "20",
-      depositor: tc.user.publicKey,
+      depositor,
       mintRecipient,
       destinationDomain: remoteDomain,
-      destinationTokenMessenger: remoteTokenMessenger,
+      destinationTokenMessenger: recipient,
       destinationCaller,
     };
     expect(JSON.stringify(depositForBurn)).to.equal(
@@ -368,7 +385,7 @@ describe("token_messenger_minter", () => {
 
     await tc.replaceDepositForBurn(
       message,
-      attestation,
+      tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2]),
       destinationCaller,
       mintRecipient
     );
@@ -376,12 +393,12 @@ describe("token_messenger_minter", () => {
     let depositForBurn = await event1;
     let depositForBurnExpected = {
       nonce: messageNonce.toString(),
-      burnToken: "1111111111113EsMD5n1VA94D2fALdb1SAKLam8j",
+      burnToken: remoteToken,
       amount: messageAmount.toString(),
-      depositor: "1111111111114VxToarANMjkwzH4g9fm2kbLkGTV",
+      depositor,
       mintRecipient,
-      destinationDomain: 3,
-      destinationTokenMessenger: "111111111111MN124yndxDmRzRoeCbBed9STUos",
+      destinationDomain: remoteDomain,
+      destinationTokenMessenger: sender,
       destinationCaller,
     };
     expect(JSON.stringify(depositForBurn)).to.equal(
@@ -395,16 +412,86 @@ describe("token_messenger_minter", () => {
     await tc.messageTransmitterProgram.removeEventListener(listener2);
   });
 
+  it("receiveMessage", async () => {
+    // fund custody
+    await spl.mintToChecked(
+      tc.provider.connection,
+      tc.owner,
+      tc.localTokenMint.publicKey,
+      tc.custodyTokenAccount.publicKey,
+      tc.owner,
+      messageAmount,
+      9
+    );
+
+    // receive message
+    let [event1, listener1] = tc.scheduleEvent(
+      "MessageReceived",
+      tc.messageTransmitterProgram
+    );
+    let [event2, listener2] = tc.scheduleEvent("MintAndWithdraw");
+
+    await tc.receiveMessage(
+      remoteDomain,
+      remoteToken,
+      messageNonce,
+      message,
+      tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2])
+    );
+
+    let messageReceived = await event1;
+    let messageReceivedExpected = {
+      caller: tc.provider.wallet.publicKey,
+      sourceDomain: messageSourceDomain,
+      nonce: messageNonce.toString(),
+      sender,
+      messageBody: tc.createBurnMessageBody(
+        messageBodyVersion,
+        remoteToken,
+        mintRecipient,
+        depositor,
+        messageAmount
+      ),
+    };
+    expect(JSON.stringify(messageReceived)).to.equal(
+      JSON.stringify(messageReceivedExpected)
+    );
+
+    let mintAndWithdraw = await event2;
+    let mintAndWithdrawExpected = {
+      mintRecipient,
+      amount: messageAmount.toString(),
+      mintToken: tc.localTokenMint.publicKey,
+    };
+    expect(JSON.stringify(mintAndWithdraw)).to.equal(
+      JSON.stringify(mintAndWithdrawExpected)
+    );
+
+    await tc.messageTransmitterProgram.removeEventListener(listener1);
+    await tc.program.removeEventListener(listener2);
+
+    localTokenExpected = {
+      custody: tc.custodyTokenAccount.publicKey,
+      mint: tc.localTokenMint.publicKey,
+      burnLimitPerMessage: "100",
+      messagesSent: "2",
+      messagesReceived: "1",
+      amountSent: "40",
+      amountReceived: "200000000",
+      bump: tc.localToken.bump,
+      custodyBump: tc.custodyTokenAccount.bump,
+    };
+
+    let localTokenState = await tc.program.account.localToken.fetch(
+      tc.localToken.publicKey
+    );
+
+    expect(JSON.stringify(localTokenState)).to.equal(
+      JSON.stringify(localTokenExpected)
+    );
+  });
+
   it("endToEnd", async () => {
-    // change remote domain to 0 to match the message
-    await tc.removeRemoteTokenMessenger(remoteTokenMessenger);
-
-    remoteDomain = 0;
-    remoteTokenMessenger = tc.findProgramAddress("remote_token_messenger", [
-      remoteDomain.toString(),
-    ]).publicKey;
-    await tc.addRemoteTokenMessenger(remoteDomain, remoteTokenMessenger);
-
     // update attesters
     const privateKey1 = Keypair.generate().publicKey.toBuffer();
     const publicKey1 = ethutil.privateToAddress(privateKey1);
@@ -432,8 +519,7 @@ describe("token_messenger_minter", () => {
       new BN(messageAmount),
       remoteDomain,
       mintRecipient,
-      destinationCaller,
-      remoteTokenMessenger
+      destinationCaller
     );
 
     // validate deposit for burn
@@ -442,10 +528,10 @@ describe("token_messenger_minter", () => {
       nonce: messageNonce.toString(),
       burnToken: tc.localTokenMint.publicKey,
       amount: messageAmount.toString(),
-      depositor: tc.user.publicKey,
+      depositor,
       mintRecipient,
       destinationDomain: remoteDomain,
-      destinationTokenMessenger: remoteTokenMessenger,
+      destinationTokenMessenger: recipient,
       destinationCaller,
     };
     expect(JSON.stringify(depositForBurn)).to.equal(
@@ -517,8 +603,7 @@ describe("token_messenger_minter", () => {
       tc.localTokenMint.publicKey,
       messageNonce,
       messageBytes,
-      combinedSignedMessageBytes,
-      remoteTokenMessenger
+      combinedSignedMessageBytes
     );
 
     // validate received message
@@ -527,7 +612,7 @@ describe("token_messenger_minter", () => {
       caller: tc.provider.wallet.publicKey,
       sourceDomain: remoteDomain,
       nonce: messageNonce.toString(),
-      sender: tc.program.programId,
+      sender,
       messageBody: messageReceived.messageBody,
     };
     expect(JSON.stringify(messageReceived)).to.equal(
@@ -552,9 +637,9 @@ describe("token_messenger_minter", () => {
       mint: tc.localTokenMint.publicKey,
       burnLimitPerMessage: "100",
       messagesSent: "3",
-      messagesReceived: "1",
+      messagesReceived: "2",
       amountSent: "60",
-      amountReceived: "20",
+      amountReceived: "200000020",
       bump: tc.localToken.bump,
       custodyBump: tc.custodyTokenAccount.bump,
     };

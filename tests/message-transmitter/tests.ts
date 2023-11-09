@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { TestClient } from "./test_client";
 import { PublicKey } from "@solana/web3.js";
 import { expect, assert } from "chai";
+import * as ethutil from "ethereumjs-util";
 import BN from "bn.js";
 
 describe("message_transmitter", () => {
@@ -9,15 +10,19 @@ describe("message_transmitter", () => {
 
   let messageTransmitterExpected;
 
-  let localDomain = 0;
+  let localDomain = 123;
   let version = 0;
 
-  let attester1 = new PublicKey(
-    tc.hexToBytes("E2fEfe09E74b921CbbFF229E7cD40009231501CA")
+  let attesterPrivateKey1 = Buffer.from(
+    "160bb136f958af14b6abc453ed1cefd323fb7c13c3d753788471a75c44127fbc",
+    "hex"
   );
-  let attester2 = new PublicKey(
-    tc.hexToBytes("b0Ea8E1bE37F346C7EA7ec708834D0db18A17361")
+  let attester1 = new PublicKey(ethutil.privateToAddress(attesterPrivateKey1));
+  let attesterPrivateKey2 = Buffer.from(
+    "dbdcf3e6a58e4c03f4e2c68721e2f0d3ee246482cf13edb1533a547490feea9c",
+    "hex"
   );
+  let attester2 = new PublicKey(ethutil.privateToAddress(attesterPrivateKey2));
 
   it("initialize", async () => {
     await tc.initFixture();
