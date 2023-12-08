@@ -32,7 +32,7 @@ pub struct DepositForBurnContext<'info> {
         seeds = [b"sender_authority"],
         bump = token_messenger.authority_bump,
     )]
-    pub sender_authority_pda: AccountInfo<'info>,
+    pub sender_authority_pda: UncheckedAccount<'info>,
 
     #[account(
         mut,

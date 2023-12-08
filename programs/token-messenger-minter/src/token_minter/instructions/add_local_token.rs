@@ -67,11 +67,6 @@ pub fn add_local_token(
     ctx: Context<AddLocalTokenContext>,
     _params: &AddLocalTokenParams,
 ) -> Result<()> {
-    require!(
-        !ctx.accounts.token_minter.paused,
-        TokenMinterError::ProgramPaused
-    );
-
     let local_token = ctx.accounts.local_token.as_mut();
 
     local_token.custody = ctx.accounts.custody_token_account.key();

@@ -32,8 +32,8 @@ pub struct LocalToken {
     pub burn_limit_per_message: u64,
     pub messages_sent: u64,
     pub messages_received: u64,
-    pub amount_sent: u64,
-    pub amount_received: u64,
+    pub amount_sent: u128,
+    pub amount_received: u128,
     pub bump: u8,
     pub custody_bump: u8,
 }
@@ -59,8 +59,8 @@ impl TokenMinter {
             TokenMinterError::BurnAmountExceeded
         );
 
-        local_token.messages_sent = local_token.messages_sent.wrapping_add(1);
-        local_token.amount_sent = local_token.amount_sent.wrapping_add(amount);
+        local_token.messages_sent = local_token.messages_sent.saturating_add(1);
+        local_token.amount_sent = local_token.amount_sent.saturating_add(amount as u128);
 
         let context: CpiContext<'_, '_, '_, '_, Burn<'_>> = CpiContext::new(
             token_program,
@@ -85,8 +85,8 @@ impl TokenMinter {
     ) -> Result<()> {
         require!(!self.paused, TokenMinterError::ProgramPaused);
 
-        local_token.messages_received = local_token.messages_received.wrapping_add(1);
-        local_token.amount_received = local_token.amount_received.wrapping_add(amount);
+        local_token.messages_received = local_token.messages_received.saturating_add(1);
+        local_token.amount_received = local_token.amount_received.saturating_add(amount as u128);
 
         let authority_seeds: &[&[&[u8]]] = &[&[b"token_minter", &[self.bump]]];
 

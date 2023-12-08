@@ -14,6 +14,16 @@ use {
     anchor_spl::token::{Token, TokenAccount},
 };
 
+/////////////////////////////////////////////////////////////////////////////
+/// IMPORTANT!
+/// If you modify this instruction to allow further arbitrary CPI calls,
+/// make sure to forbid self-reentrancy. Otherwise, handle_receive_message
+/// can be called again with intact signatures and data that can lead to
+/// loss of funds. An example of a reentrancy check would be adding a
+/// constraint to the callee program account:
+/// constraint = callee.key() != crate::ID
+/// /////////////////////////////////////////////////////////////////////////
+
 // Instruction accounts
 #[derive(Accounts)]
 #[instruction(params: HandleReceiveMessageParams)]

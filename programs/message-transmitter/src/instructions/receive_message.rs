@@ -30,7 +30,7 @@ pub struct ReceiveMessageContext<'info> {
         seeds = [b"message_transmitter_authority", receiver.key().as_ref()],
         bump,
     )]
-    pub authority_pda: AccountInfo<'info>,
+    pub authority_pda: UncheckedAccount<'info>,
 
     #[account()]
     pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
@@ -51,7 +51,8 @@ pub struct ReceiveMessageContext<'info> {
 
     ///CHECK: Receiver program address, e.g. TokenMessenger
     #[account(
-        constraint = receiver.executable
+        constraint = receiver.executable,
+        constraint = receiver.key() != crate::ID
     )]
     pub receiver: UncheckedAccount<'info>,
 

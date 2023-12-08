@@ -24,7 +24,7 @@ pub struct InitializeContext<'info> {
         seeds = [b"sender_authority"],
         bump
     )]
-    pub authority_pda: AccountInfo<'info>,
+    pub authority_pda: UncheckedAccount<'info>,
 
     // TokenMessenger state account
     #[account(
