@@ -42,6 +42,10 @@ impl<'a> Message<'a> {
         Ok(message)
     }
 
+    pub fn serialized_len(message_body_len: usize) -> Result<usize> {
+        utils::checked_add(Self::MESSAGE_BODY_INDEX, message_body_len)
+    }
+
     #[allow(clippy::too_many_arguments)]
     /// Serializes given fields into a message
     pub fn format_message(
@@ -54,7 +58,7 @@ impl<'a> Message<'a> {
         destination_caller: &Pubkey,
         message_body: &Vec<u8>,
     ) -> Result<Vec<u8>> {
-        let mut output = vec![0; utils::checked_add(Self::MESSAGE_BODY_INDEX, message_body.len())?];
+        let mut output = vec![0; Message::serialized_len(message_body.len())?];
 
         output[Self::VERSION_INDEX..Self::SOURCE_DOMAIN_INDEX]
             .copy_from_slice(&version.to_be_bytes());

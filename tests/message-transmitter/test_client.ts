@@ -76,6 +76,68 @@ export class TestClient {
     return bytes;
   };
 
+  readEvents = async (txSignature: string, programs) => {
+    await this.program.provider.connection.confirmTransaction(txSignature);
+    const config = { commitment: "confirmed" } as const;
+    const txResult = await this.program.provider.connection.getTransaction(
+      txSignature,
+      config
+    );
+
+    let eventAuthorities = new Map();
+    for (const program of programs) {
+      eventAuthorities.set(
+        program.programId.toString(),
+        this.findProgramAddress(
+          "__event_authority",
+          null,
+          program.programId
+        ).publicKey.toString()
+      );
+    }
+
+    let events = [];
+    for (const ixBlock of txResult.meta.innerInstructions) {
+      for (const ix of ixBlock.instructions) {
+        for (const program of programs) {
+          const programStr = program.programId.toString();
+          if (
+            ix.accounts.length === 1 &&
+            txResult.transaction.message.accountKeys[
+              ix.programIdIndex
+            ].toString() === programStr &&
+            txResult.transaction.message.accountKeys[
+              ix.accounts[0]
+            ].toString() === eventAuthorities.get(programStr)
+          ) {
+            const ixData = anchor.utils.bytes.bs58.decode(ix.data);
+            const eventData = anchor.utils.bytes.base64.encode(ixData.slice(8));
+            let event = program.coder.events.decode(eventData);
+            events.push({
+              program: program.programId,
+              data: event.data,
+              name: event.name,
+            });
+          }
+        }
+      }
+    }
+
+    return events;
+  };
+
+  getEvent = (events, program: PublicKey, eventName: string) => {
+    for (const event of events) {
+      if (
+        event.name === eventName &&
+        program.toString() === event.program.toString()
+      ) {
+        return event.data;
+      }
+    }
+    throw new Error("Event " + eventName + " not found");
+  };
+
   ///////
   // instructions
 
@@ -90,7 +152,7 @@ export class TestClient {
       new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0];
 
-    await this.program.methods
+    return await this.program.methods
       .initialize({
         localDomain,
         attester,
@@ -114,7 +176,7 @@ export class TestClient {
       )
     ).owner;
 
-    await this.program.methods
+    return await this.program.methods
       .transferOwnership({ newOwner })
       .accounts({
         owner: currentOwner,
@@ -125,7 +187,7 @@ export class TestClient {
   };
 
   acceptOwnership = async (newOwner: Keypair) => {
-    await this.program.methods
+    return await this.program.methods
       .acceptOwnership({})
       .accounts({
         pendingOwner: this.owner.publicKey,
@@ -137,7 +199,7 @@ export class TestClient {
   };
 
   updatePauser = async (newPauser: PublicKey) => {
-    await this.program.methods
+    return await this.program.methods
       .updatePauser({ newPauser })
       .accounts({
         owner: this.owner.publicKey,
@@ -148,7 +210,7 @@ export class TestClient {
   };
 
   updateAttesterManager = async (newAttesterManager: PublicKey) => {
-    await this.program.methods
+    return await this.program.methods
       .updateAttesterManager({ newAttesterManager })
       .accounts({
         owner: this.owner.publicKey,
@@ -159,7 +221,7 @@ export class TestClient {
   };
 
   pause = async () => {
-    await this.program.methods
+    return await this.program.methods
       .pause({})
       .accounts({
         pauser: this.pauser.publicKey,
@@ -170,7 +232,7 @@ export class TestClient {
   };
 
   unpause = async () => {
-    await this.program.methods
+    return await this.program.methods
       .unpause({})
       .accounts({
         pauser: this.pauser.publicKey,
@@ -181,7 +243,7 @@ export class TestClient {
   };
 
   setMaxMessageBodySize = async (newMaxMessageBodySize: BN) => {
-    await this.program.methods
+    return await this.program.methods
       .setMaxMessageBodySize({ newMaxMessageBodySize })
       .accounts({
         owner: this.owner.publicKey,
@@ -192,7 +254,7 @@ export class TestClient {
   };
 
   enableAttester = async (newAttester: PublicKey) => {
-    await this.program.methods
+    return await this.program.methods
       .enableAttester({ newAttester })
       .accounts({
         attesterManager: this.attesterManager.publicKey,
@@ -204,7 +266,7 @@ export class TestClient {
   };
 
   disableAttester = async (attester: PublicKey) => {
-    await this.program.methods
+    return await this.program.methods
       .disableAttester({ attester })
       .accounts({
         attesterManager: this.attesterManager.publicKey,
@@ -216,7 +278,7 @@ export class TestClient {
   };
 
   setSignatureThreshold = async (newSignatureThreshold: number) => {
-    await this.program.methods
+    return await this.program.methods
       .setSignatureThreshold({ newSignatureThreshold })
       .accounts({
         attesterManager: this.attesterManager.publicKey,

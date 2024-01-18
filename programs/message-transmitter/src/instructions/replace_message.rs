@@ -1,13 +1,20 @@
 //! ReplaceMessage instruction handler
 
 use {
-    crate::{error::MessageTransmitterError, message::Message, state::MessageTransmitter},
+    crate::{
+        error::MessageTransmitterError, events::MessageSent, message::Message,
+        state::MessageTransmitter,
+    },
     anchor_lang::prelude::*,
 };
 
 // Instruction accounts
 #[derive(Accounts)]
+#[instruction(params: ReplaceMessageParams)]
 pub struct ReplaceMessageContext<'info> {
+    #[account(mut)]
+    pub event_rent_payer: Signer<'info>,
+
     #[account(
         seeds = [b"sender_authority"],
         bump,
@@ -18,11 +25,20 @@ pub struct ReplaceMessageContext<'info> {
     #[account(mut)]
     pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
 
+    #[account(
+        init,
+        payer = event_rent_payer,
+        space = MessageSent::len(params.new_message_body.len())?,
+    )]
+    pub message_sent_event_data: Box<Account<'info, MessageSent>>,
+
     ///CHECK: Sender program address, e.g. TokenMessenger
     #[account(
         constraint = sender_program.executable
     )]
     pub sender_program: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
 // Instruction parameters
@@ -66,6 +82,8 @@ pub fn replace_message(
     // send updated message
     crate::instructions::send_message_helper(
         message_transmitter,
+        ctx.accounts.message_sent_event_data.as_mut(),
+        &ctx.accounts.event_rent_payer.key(),
         message.destination_domain()?,
         &message.recipient()?,
         &params.new_destination_caller,

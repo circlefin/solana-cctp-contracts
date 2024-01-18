@@ -1,11 +1,9 @@
-import * as anchor from "@coral-xyz/anchor";
 import { TestClient } from "./test_client";
 import { PublicKey, Keypair } from "@solana/web3.js";
 import { expect, assert } from "chai";
 import * as ethutil from "ethereumjs-util";
 import BN from "bn.js";
 import * as spl from "@solana/spl-token";
-import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 
 describe("token_messenger_minter", () => {
   let tc = new TestClient();
@@ -101,17 +99,14 @@ describe("token_messenger_minter", () => {
   });
 
   it("transferOwnership", async () => {
-    let listener = null;
-    let [event, _slot] = await new Promise((resolve, _reject) => {
-      listener = tc.program.addEventListener(
-        "OwnershipTransferStarted",
-        (event, slot) => {
-          resolve([event, slot]);
-        }
-      );
-      tc.transferOwnership(tc.owner.publicKey);
-    });
-    await tc.program.removeEventListener(listener);
+    let signature = await tc.transferOwnership(tc.owner.publicKey);
+
+    let events = await tc.readEvents(signature, [tc.program]);
+    let ownershipTransferStarted = tc.getEvent(
+      events,
+      tc.program.programId,
+      "OwnershipTransferStarted"
+    );
 
     tokenMessengerExpected.pendingOwner = tc.owner.publicKey;
 
@@ -126,11 +121,20 @@ describe("token_messenger_minter", () => {
       previousOwner: tc.provider.wallet.publicKey,
       newOwner: tc.owner.publicKey,
     };
-    expect(JSON.stringify(event)).to.equal(JSON.stringify(eventExpected));
+    expect(JSON.stringify(ownershipTransferStarted)).to.equal(
+      JSON.stringify(eventExpected)
+    );
   });
 
   it("acceptOwnership", async () => {
-    await tc.acceptOwnership(tc.owner);
+    let signature = await tc.acceptOwnership(tc.owner);
+
+    let events = await tc.readEvents(signature, [tc.program]);
+    let ownershipTransferred = tc.getEvent(
+      events,
+      tc.program.programId,
+      "OwnershipTransferred"
+    );
 
     tokenMessengerExpected.owner = tc.owner.publicKey;
     tokenMessengerExpected.pendingOwner = PublicKey.default;
@@ -140,6 +144,14 @@ describe("token_messenger_minter", () => {
     );
     expect(JSON.stringify(tokenMessenger)).to.equal(
       JSON.stringify(tokenMessengerExpected)
+    );
+
+    let eventExpected = {
+      previousOwner: tc.provider.wallet.publicKey,
+      newOwner: tc.owner.publicKey,
+    };
+    expect(JSON.stringify(ownershipTransferred)).to.equal(
+      JSON.stringify(eventExpected)
     );
   });
 
@@ -310,15 +322,28 @@ describe("token_messenger_minter", () => {
   });
 
   it("depositForBurn", async () => {
-    let [event1, listener1] = tc.scheduleEvent("DepositForBurn");
-    let [event2, listener2] = tc.scheduleEvent(
-      "MessageSent",
-      tc.messageTransmitterProgram
+    // MessageSent event data is stored in a stand-alone account.
+    // A random Keypair needs to be provided so the account can be initialized by the contract.
+    // After the transaction is executed, the keypair is no longer needed and can be tossed away.
+    let messageSentEventAccountKeypair = Keypair.generate();
+
+    let signature = await tc.depositForBurn(
+      new BN(20),
+      remoteDomain,
+      mintRecipient,
+      messageSentEventAccountKeypair
     );
 
-    await tc.depositForBurn(new BN(20), remoteDomain, mintRecipient);
+    let events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
 
-    let depositForBurn = await event1;
+    let depositForBurn = tc.getEvent(
+      events,
+      tc.program.programId,
+      "DepositForBurn"
+    );
     let depositForBurnExpected = {
       nonce: "1",
       burnToken: tc.localTokenMint.publicKey,
@@ -333,28 +358,42 @@ describe("token_messenger_minter", () => {
       JSON.stringify(depositForBurnExpected)
     );
 
-    let messageSent = await event2;
+    let messageSent =
+      await tc.messageTransmitterProgram.account.messageSent.fetch(
+        messageSentEventAccountKeypair.publicKey
+      );
     expect(messageSent.message.length).to.equal(248);
 
-    await tc.program.removeEventListener(listener1);
-    await tc.messageTransmitterProgram.removeEventListener(listener2);
+    let accountInfo = await tc.program.provider.connection.getAccountInfo(
+      messageSentEventAccountKeypair.publicKey
+    );
+    expect(JSON.stringify(accountInfo.owner)).to.equal(
+      JSON.stringify(tc.messageTransmitterProgram.programId)
+    );
+    expect(accountInfo.data.length).to.equal(292);
   });
 
   it("depositForBurnWithCaller", async () => {
-    let [event1, listener1] = tc.scheduleEvent("DepositForBurn");
-    let [event2, listener2] = tc.scheduleEvent(
-      "MessageSent",
-      tc.messageTransmitterProgram
-    );
+    let messageSentEventAccountKeypair = Keypair.generate();
 
-    await tc.depositForBurnWithCaller(
+    let signature = await tc.depositForBurnWithCaller(
       new BN(20),
       remoteDomain,
       mintRecipient,
-      destinationCaller
+      destinationCaller,
+      messageSentEventAccountKeypair
     );
 
-    let depositForBurn = await event1;
+    let events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
+
+    let depositForBurn = tc.getEvent(
+      events,
+      tc.program.programId,
+      "DepositForBurn"
+    );
     let depositForBurnExpected = {
       nonce: "2",
       burnToken: tc.localTokenMint.publicKey,
@@ -369,28 +408,34 @@ describe("token_messenger_minter", () => {
       JSON.stringify(depositForBurnExpected)
     );
 
-    let messageSent = await event2;
+    let messageSent =
+      await tc.messageTransmitterProgram.account.messageSent.fetch(
+        messageSentEventAccountKeypair.publicKey
+      );
     expect(messageSent.message.length).to.equal(248);
-
-    await tc.program.removeEventListener(listener1);
-    await tc.messageTransmitterProgram.removeEventListener(listener2);
   });
 
   it("replaceDepositForBurn", async () => {
-    let [event1, listener1] = tc.scheduleEvent("DepositForBurn");
-    let [event2, listener2] = tc.scheduleEvent(
-      "MessageSent",
-      tc.messageTransmitterProgram
-    );
+    let messageSentEventAccountKeypair = Keypair.generate();
 
-    await tc.replaceDepositForBurn(
+    let signature = await tc.replaceDepositForBurn(
       message,
       tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2]),
       destinationCaller,
-      mintRecipient
+      mintRecipient,
+      messageSentEventAccountKeypair
     );
 
-    let depositForBurn = await event1;
+    let events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
+
+    let depositForBurn = tc.getEvent(
+      events,
+      tc.program.programId,
+      "DepositForBurn"
+    );
     let depositForBurnExpected = {
       nonce: messageNonce.toString(),
       burnToken: remoteToken,
@@ -405,11 +450,11 @@ describe("token_messenger_minter", () => {
       JSON.stringify(depositForBurnExpected)
     );
 
-    let messageSent = await event2;
+    let messageSent =
+      await tc.messageTransmitterProgram.account.messageSent.fetch(
+        messageSentEventAccountKeypair.publicKey
+      );
     expect(messageSent.message.length).to.equal(248);
-
-    await tc.program.removeEventListener(listener1);
-    await tc.messageTransmitterProgram.removeEventListener(listener2);
   });
 
   it("receiveMessage", async () => {
@@ -424,14 +469,7 @@ describe("token_messenger_minter", () => {
       9
     );
 
-    // receive message
-    let [event1, listener1] = tc.scheduleEvent(
-      "MessageReceived",
-      tc.messageTransmitterProgram
-    );
-    let [event2, listener2] = tc.scheduleEvent("MintAndWithdraw");
-
-    await tc.receiveMessage(
+    let signature = await tc.receiveMessage(
       remoteDomain,
       remoteToken,
       messageNonce,
@@ -439,7 +477,17 @@ describe("token_messenger_minter", () => {
       tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2])
     );
 
-    let messageReceived = await event1;
+    let events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
+
+    let messageReceived = tc.getEvent(
+      events,
+      tc.messageTransmitterProgram.programId,
+      "MessageReceived"
+    );
+
     let messageReceivedExpected = {
       caller: tc.provider.wallet.publicKey,
       sourceDomain: messageSourceDomain,
@@ -457,7 +505,11 @@ describe("token_messenger_minter", () => {
       JSON.stringify(messageReceivedExpected)
     );
 
-    let mintAndWithdraw = await event2;
+    let mintAndWithdraw = tc.getEvent(
+      events,
+      tc.program.programId,
+      "MintAndWithdraw"
+    );
     let mintAndWithdrawExpected = {
       mintRecipient,
       amount: messageAmount.toString(),
@@ -466,9 +518,6 @@ describe("token_messenger_minter", () => {
     expect(JSON.stringify(mintAndWithdraw)).to.equal(
       JSON.stringify(mintAndWithdrawExpected)
     );
-
-    await tc.messageTransmitterProgram.removeEventListener(listener1);
-    await tc.program.removeEventListener(listener2);
 
     localTokenExpected = {
       custody: tc.custodyTokenAccount.publicKey,
@@ -506,24 +555,29 @@ describe("token_messenger_minter", () => {
     await tc.disableAttester(attester2);
 
     // deposit for burn
-    let [event1, listener1] = tc.scheduleEvent("DepositForBurn");
-    let [event2, listener2] = tc.scheduleEvent(
-      "MessageSent",
-      tc.messageTransmitterProgram
-    );
-
     messageNonce = BigInt(3);
     const messageAmount = 20;
+    let messageSentEventAccountKeypair = Keypair.generate();
 
-    await tc.depositForBurnWithCaller(
+    let signature = await tc.depositForBurnWithCaller(
       new BN(messageAmount),
       remoteDomain,
       mintRecipient,
-      destinationCaller
+      destinationCaller,
+      messageSentEventAccountKeypair
     );
 
+    let events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
+
     // validate deposit for burn
-    let depositForBurn = await event1;
+    let depositForBurn = tc.getEvent(
+      events,
+      tc.program.programId,
+      "DepositForBurn"
+    );
     let depositForBurnExpected = {
       nonce: messageNonce.toString(),
       burnToken: tc.localTokenMint.publicKey,
@@ -538,7 +592,10 @@ describe("token_messenger_minter", () => {
       JSON.stringify(depositForBurnExpected)
     );
 
-    let messageSent = await event2;
+    let messageSent =
+      await tc.messageTransmitterProgram.account.messageSent.fetch(
+        messageSentEventAccountKeypair.publicKey
+      );
     expect(messageSent.message.length).to.equal(248);
     const messageBytes = messageSent.message;
 
@@ -558,6 +615,7 @@ describe("token_messenger_minter", () => {
         .slice(2)
     );
 
+    // contract expects pubkeys to be ordered
     let combinedSignedMessageBytes;
     let flip = false;
     for (let i = 0; i < Math.min(publicKey1.length, publicKey2.length); ++i) {
@@ -576,9 +634,6 @@ describe("token_messenger_minter", () => {
         signedMessageBytes1.concat(signedMessageBytes2);
     }
 
-    await tc.program.removeEventListener(listener1);
-    await tc.messageTransmitterProgram.removeEventListener(listener2);
-
     // fund custody
     await tc.linkTokenPair(remoteDomain, tc.localTokenMint.publicKey);
     await spl.mintToChecked(
@@ -592,13 +647,7 @@ describe("token_messenger_minter", () => {
     );
 
     // receive message
-    [event1, listener1] = tc.scheduleEvent(
-      "MessageReceived",
-      tc.messageTransmitterProgram
-    );
-    [event2, listener2] = tc.scheduleEvent("MintAndWithdraw");
-
-    await tc.receiveMessage(
+    signature = await tc.receiveMessage(
       remoteDomain,
       tc.localTokenMint.publicKey,
       messageNonce,
@@ -606,8 +655,17 @@ describe("token_messenger_minter", () => {
       combinedSignedMessageBytes
     );
 
+    events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
+
     // validate received message
-    let messageReceived = await event1;
+    let messageReceived = tc.getEvent(
+      events,
+      tc.messageTransmitterProgram.programId,
+      "MessageReceived"
+    );
     let messageReceivedExpected = {
       caller: tc.provider.wallet.publicKey,
       sourceDomain: remoteDomain,
@@ -619,7 +677,11 @@ describe("token_messenger_minter", () => {
       JSON.stringify(messageReceivedExpected)
     );
 
-    let mintAndWithdraw = await event2;
+    let mintAndWithdraw = tc.getEvent(
+      events,
+      tc.program.programId,
+      "MintAndWithdraw"
+    );
     let mintAndWithdrawExpected = {
       mintRecipient,
       amount: messageAmount.toString(),
@@ -628,9 +690,6 @@ describe("token_messenger_minter", () => {
     expect(JSON.stringify(mintAndWithdraw)).to.equal(
       JSON.stringify(mintAndWithdrawExpected)
     );
-
-    await tc.messageTransmitterProgram.removeEventListener(listener1);
-    await tc.program.removeEventListener(listener2);
 
     localTokenExpected = {
       custody: tc.custodyTokenAccount.publicKey,
@@ -651,5 +710,33 @@ describe("token_messenger_minter", () => {
     expect(JSON.stringify(localTokenState)).to.equal(
       JSON.stringify(localTokenExpected)
     );
+
+    // reclaim rent SOL
+    let initialBalance = await tc.provider.connection.getBalance(
+      tc.user.publicKey
+    );
+
+    await tc.ensureFails(
+      tc.reclaimEventAccount(
+        tc.owner,
+        combinedSignedMessageBytes,
+        messageSentEventAccountKeypair.publicKey
+      )
+    );
+    await tc.reclaimEventAccount(
+      tc.user,
+      combinedSignedMessageBytes,
+      messageSentEventAccountKeypair.publicKey
+    );
+
+    await tc.ensureFails(
+      tc.messageTransmitterProgram.account.messageSent.fetch(
+        messageSentEventAccountKeypair.publicKey
+      )
+    );
+
+    expect(
+      await tc.provider.connection.getBalance(tc.user.publicKey)
+    ).to.greaterThan(initialBalance);
   });
 });

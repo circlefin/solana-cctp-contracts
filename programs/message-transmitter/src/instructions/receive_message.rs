@@ -16,6 +16,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 #[instruction(params: ReceiveMessageParams)]
 pub struct ReceiveMessageContext<'info> {
@@ -194,7 +195,7 @@ pub fn receive_message<'info>(
         authority_seeds,
     )?;
 
-    emit!(MessageReceived {
+    emit_cpi!(MessageReceived {
         caller: ctx.accounts.caller.key(),
         source_domain,
         nonce,

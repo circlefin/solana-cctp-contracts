@@ -11,6 +11,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 #[instruction(params: AddRemoteTokenMessengerParams)]
 pub struct AddRemoteTokenMessengerContext<'info> {
@@ -64,7 +65,7 @@ pub fn add_remote_token_messenger(
         TokenMessengerError::InvalidTokenMessengerState
     );
 
-    emit!(RemoteTokenMessengerAdded {
+    emit_cpi!(RemoteTokenMessengerAdded {
         domain: params.domain,
         token_messenger: params.token_messenger
     });

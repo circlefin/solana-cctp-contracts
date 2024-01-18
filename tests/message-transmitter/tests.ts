@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import { TestClient } from "./test_client";
 import { PublicKey } from "@solana/web3.js";
 import { expect, assert } from "chai";
@@ -56,17 +55,14 @@ describe("message_transmitter", () => {
   });
 
   it("transferOwnership", async () => {
-    let listener = null;
-    let [event, _slot] = await new Promise((resolve, _reject) => {
-      listener = tc.program.addEventListener(
-        "OwnershipTransferStarted",
-        (event, slot) => {
-          resolve([event, slot]);
-        }
-      );
-      tc.transferOwnership(tc.owner.publicKey);
-    });
-    await tc.program.removeEventListener(listener);
+    let signature = await tc.transferOwnership(tc.owner.publicKey);
+
+    let events = await tc.readEvents(signature, [tc.program]);
+    let ownershipTransferStarted = tc.getEvent(
+      events,
+      tc.program.programId,
+      "OwnershipTransferStarted"
+    );
 
     messageTransmitterExpected.pendingOwner = tc.owner.publicKey;
 
@@ -81,11 +77,20 @@ describe("message_transmitter", () => {
       previousOwner: tc.provider.wallet.publicKey,
       newOwner: tc.owner.publicKey,
     };
-    expect(JSON.stringify(event)).to.equal(JSON.stringify(eventExpected));
+    expect(JSON.stringify(ownershipTransferStarted)).to.equal(
+      JSON.stringify(eventExpected)
+    );
   });
 
   it("acceptOwnership", async () => {
-    await tc.acceptOwnership(tc.owner);
+    let signature = await tc.acceptOwnership(tc.owner);
+
+    let events = await tc.readEvents(signature, [tc.program]);
+    let ownershipTransferred = tc.getEvent(
+      events,
+      tc.program.programId,
+      "OwnershipTransferred"
+    );
 
     messageTransmitterExpected.owner = tc.owner.publicKey;
     messageTransmitterExpected.pendingOwner = PublicKey.default;
@@ -95,6 +100,14 @@ describe("message_transmitter", () => {
     );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
+    );
+
+    let eventExpected = {
+      previousOwner: tc.provider.wallet.publicKey,
+      newOwner: tc.owner.publicKey,
+    };
+    expect(JSON.stringify(ownershipTransferred)).to.equal(
+      JSON.stringify(eventExpected)
     );
   });
 

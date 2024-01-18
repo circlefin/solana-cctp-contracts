@@ -9,6 +9,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct SetSignatureThresholdContext<'info> {
     #[account()]
@@ -56,7 +57,7 @@ pub fn set_signature_threshold(
 
     message_transmitter.signature_threshold = params.new_signature_threshold;
 
-    emit!(SignatureThresholdUpdated {
+    emit_cpi!(SignatureThresholdUpdated {
         old_signature_threshold,
         new_signature_threshold: params.new_signature_threshold
     });

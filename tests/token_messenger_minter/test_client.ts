@@ -2,7 +2,12 @@ import * as anchor from "@coral-xyz/anchor";
 import * as ethutil from "ethereumjs-util";
 import { TokenMessengerMinter } from "../../target/types/token_messenger_minter";
 import { MessageTransmitter } from "../../target/types/message_transmitter";
-import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import {
+  PublicKey,
+  Keypair,
+  SystemProgram,
+  ConfirmOptions,
+} from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import BN from "bn.js";
 
@@ -22,7 +27,9 @@ export class TestClient {
 
   authorityPda: { publicKey: PublicKey; bump: number };
   messageTransmitter: { publicKey: PublicKey; bump: number };
+  messageTransmitterEventAuthority: { publicKey: PublicKey; bump: number };
   tokenMessenger: { publicKey: PublicKey; bump: number };
+  tokenMessengerEventAuthority: { publicKey: PublicKey; bump: number };
   tokenMinter: { publicKey: PublicKey; bump: number };
   localToken: { publicKey: PublicKey; bump: number };
   custodyTokenAccount: { publicKey: PublicKey; bump: number };
@@ -56,7 +63,14 @@ export class TestClient {
       null,
       this.messageTransmitterProgram.programId
     );
+    this.messageTransmitterEventAuthority = this.findProgramAddress(
+      "__event_authority",
+      null,
+      this.messageTransmitterProgram.programId
+    );
     this.tokenMessenger = this.findProgramAddress("token_messenger");
+    this.tokenMessengerEventAuthority =
+      this.findProgramAddress("__event_authority");
     this.tokenMinter = this.findProgramAddress("token_minter");
     this.localToken = this.findProgramAddress("local_token", [
       this.localTokenMint.publicKey,
@@ -137,456 +151,66 @@ export class TestClient {
     return bytes;
   };
 
-  scheduleEvent = (eventName: string, program = this.program) => {
-    let listener = null;
-    let event = new Promise((resolve, _reject) => {
-      listener = program.addEventListener(eventName, (event, _slot) => {
-        resolve(event);
-      });
-    });
-    return [event, listener];
-  };
+  readEvents = async (txSignature: string, programs) => {
+    await this.program.provider.connection.confirmTransaction(txSignature);
+    const config = { commitment: "confirmed" } as const;
+    const txResult = await this.program.provider.connection.getTransaction(
+      txSignature,
+      config
+    );
 
-  ///////
-  // instructions
-
-  initialize = async (
-    tokenController: PublicKey,
-    messageBodyVersion: number
-  ) => {
-    let programData = PublicKey.findProgramAddressSync(
-      [this.program.programId.toBuffer()],
-      new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
-    )[0];
-
-    await this.program.methods
-      .initialize({
-        tokenController,
-        localMessageTransmitter: this.messageTransmitterProgram.programId,
-        messageBodyVersion,
-      })
-      .accounts({
-        upgradeAuthority: this.provider.wallet.publicKey,
-        authorityPda: this.authorityPda.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-        tokenMessengerMinterProgramData: programData,
-        tokenMessengerMinterProgram: this.program.programId,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
-  };
-
-  transferOwnership = async (newOwner: PublicKey) => {
-    let currentOwner = (
-      await this.program.account.tokenMessenger.fetch(
-        this.tokenMessenger.publicKey
-      )
-    ).owner;
-
-    await this.program.methods
-      .transferOwnership({ newOwner })
-      .accounts({
-        owner: currentOwner,
-        tokenMessenger: this.tokenMessenger.publicKey,
-      })
-      .signers(currentOwner == this.owner.publicKey ? [this.owner] : [])
-      .rpc();
-  };
-
-  acceptOwnership = async (newOwner: Keypair) => {
-    await this.program.methods
-      .acceptOwnership({})
-      .accounts({
-        pendingOwner: this.owner.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-      })
-      .signers([newOwner])
-      .rpc();
-    this.owner = newOwner;
-  };
-
-  addRemoteTokenMessenger = async (
-    domain: number,
-    tokenMessenger: PublicKey
-  ) => {
-    let remoteTokenMessenger = this.findProgramAddress(
-      "remote_token_messenger",
-      [domain.toString()]
-    ).publicKey;
-    await this.program.methods
-      .addRemoteTokenMessenger({ domain, tokenMessenger })
-      .accounts({
-        owner: this.owner.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        remoteTokenMessenger,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([this.owner])
-      .rpc();
-  };
-
-  removeRemoteTokenMessenger = async (domain: number) => {
-    let remoteTokenMessenger = this.findProgramAddress(
-      "remote_token_messenger",
-      [domain.toString()]
-    ).publicKey;
-    await this.program.methods
-      .removeRemoteTokenMessenger({})
-      .accounts({
-        owner: this.owner.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        remoteTokenMessenger,
-      })
-      .signers([this.owner])
-      .rpc();
-  };
-
-  updatePauser = async (newPauser: PublicKey) => {
-    await this.program.methods
-      .updatePauser({ newPauser })
-      .accounts({
-        owner: this.owner.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-      })
-      .signers([this.owner])
-      .rpc();
-  };
-
-  setTokenController = async (tokenController: PublicKey) => {
-    await this.program.methods
-      .setTokenController({ tokenController })
-      .accounts({
-        owner: this.owner.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-      })
-      .signers([this.owner])
-      .rpc();
-  };
-
-  pause = async () => {
-    await this.program.methods
-      .pause({})
-      .accounts({
-        pauser: this.pauser.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-      })
-      .signers([this.pauser])
-      .rpc();
-  };
-
-  unpause = async () => {
-    await this.program.methods
-      .unpause({})
-      .accounts({
-        pauser: this.pauser.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-      })
-      .signers([this.pauser])
-      .rpc();
-  };
-
-  addLocalToken = async () => {
-    await this.program.methods
-      .addLocalToken({})
-      .accounts({
-        tokenController: this.tokenController.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-        localToken: this.localToken.publicKey,
-        custodyTokenAccount: this.custodyTokenAccount.publicKey,
-        localTokenMint: this.localTokenMint.publicKey,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([this.tokenController])
-      .rpc();
-  };
-
-  removeLocalToken = async () => {
-    await this.program.methods
-      .removeLocalToken({})
-      .accounts({
-        tokenController: this.tokenController.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-        localToken: this.localToken.publicKey,
-        custodyTokenAccount: this.custodyTokenAccount.publicKey,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-      })
-      .signers([this.tokenController])
-      .rpc();
-  };
-
-  setMaxBurnAmountPerMessage = async (burnLimitPerMessage: BN) => {
-    await this.program.methods
-      .setMaxBurnAmountPerMessage({ burnLimitPerMessage })
-      .accounts({
-        tokenController: this.tokenController.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-        localToken: this.localToken.publicKey,
-      })
-      .signers([this.tokenController])
-      .rpc();
-  };
-
-  linkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
-    let tokenPair = this.findProgramAddress("token_pair", [
-      remoteDomain.toString(),
-      remoteToken,
-    ]);
-
-    await this.program.methods
-      .linkTokenPair({
-        localToken: this.localToken.publicKey,
-        remoteDomain,
-        remoteToken,
-      })
-      .accounts({
-        tokenController: this.tokenController.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-        tokenPair: tokenPair.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([this.tokenController])
-      .rpc();
-  };
-
-  unlinkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
-    let tokenPair = this.findProgramAddress("token_pair", [
-      remoteDomain.toString(),
-      remoteToken,
-    ]);
-
-    await this.program.methods
-      .unlinkTokenPair({ remoteDomain, remoteToken })
-      .accounts({
-        tokenController: this.tokenController.publicKey,
-        tokenMinter: this.tokenMinter.publicKey,
-        tokenPair: tokenPair.publicKey,
-      })
-      .signers([this.tokenController])
-      .rpc();
-  };
-
-  depositForBurn = async (
-    amount: BN,
-    destinationDomain: number,
-    mintRecipient: PublicKey
-  ) => {
-    let remoteTokenMessenger = this.findProgramAddress(
-      "remote_token_messenger",
-      [destinationDomain.toString()]
-    ).publicKey;
-    await this.program.methods
-      .depositForBurn({
-        amount,
-        destinationDomain,
-        mintRecipient,
-      })
-      .accounts({
-        owner: this.user.publicKey,
-        senderAuthorityPda: this.authorityPda.publicKey,
-        burnTokenAccount: this.userTokenAccount,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        remoteTokenMessenger,
-        tokenMinter: this.tokenMinter.publicKey,
-        localToken: this.localToken.publicKey,
-        burnTokenMint: this.localTokenMint.publicKey,
-        messageTransmitterProgram: this.messageTransmitterProgram.programId,
-        tokenMessengerMinterProgram: this.program.programId,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-      })
-      .signers([this.user])
-      .rpc();
-  };
-
-  depositForBurnWithCaller = async (
-    amount: BN,
-    destinationDomain: number,
-    mintRecipient: PublicKey,
-    destinationCaller: PublicKey
-  ) => {
-    let remoteTokenMessenger = this.findProgramAddress(
-      "remote_token_messenger",
-      [destinationDomain.toString()]
-    ).publicKey;
-    await this.program.methods
-      .depositForBurnWithCaller({
-        amount,
-        destinationDomain,
-        mintRecipient,
-        destinationCaller,
-      })
-      .accounts({
-        owner: this.user.publicKey,
-        senderAuthorityPda: this.authorityPda.publicKey,
-        burnTokenAccount: this.userTokenAccount,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        remoteTokenMessenger,
-        tokenMinter: this.tokenMinter.publicKey,
-        localToken: this.localToken.publicKey,
-        burnTokenMint: this.localTokenMint.publicKey,
-        messageTransmitterProgram: this.messageTransmitterProgram.programId,
-        tokenMessengerMinterProgram: this.program.programId,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-      })
-      .signers([this.user])
-      .rpc();
-  };
-
-  replaceDepositForBurn = async (
-    originalMessage: number[],
-    originalAttestation: number[],
-    newDestinationCaller: PublicKey,
-    newMintRecipient: PublicKey
-  ) => {
-    await this.program.methods
-      .replaceDepositForBurn({
-        originalMessage: Buffer.from(originalMessage),
-        originalAttestation: Buffer.from(originalAttestation),
-        newDestinationCaller,
-        newMintRecipient,
-      })
-      .accounts({
-        owner: this.user.publicKey,
-        senderAuthorityPda: this.authorityPda.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        messageTransmitterProgram: this.messageTransmitterProgram.programId,
-        tokenMessengerMinterProgram: this.program.programId,
-      })
-      .signers([this.user])
-      .rpc();
-  };
-
-  enableAttester = async (newAttester: PublicKey) => {
-    await this.messageTransmitterProgram.methods
-      .enableAttester({ newAttester })
-      .accounts({
-        attesterManager: this.provider.wallet.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
-  };
-
-  disableAttester = async (attester: PublicKey) => {
-    await this.messageTransmitterProgram.methods
-      .disableAttester({ attester })
-      .accounts({
-        attesterManager: this.provider.wallet.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
-  };
-
-  setSignatureThreshold = async (newSignatureThreshold: number) => {
-    await this.messageTransmitterProgram.methods
-      .setSignatureThreshold({ newSignatureThreshold })
-      .accounts({
-        attesterManager: this.provider.wallet.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-      })
-      .rpc();
-  };
-
-  receiveMessage = async (
-    remoteDomain: number,
-    remoteToken: PublicKey,
-    nonce: bigint,
-    message: number[],
-    attestation: number[]
-  ) => {
-    let maxNonces = 6400;
-    const firstNonce =
-      ((nonce - BigInt(1)) / BigInt(maxNonces)) * BigInt(maxNonces) + BigInt(1);
-    const usedNonces = this.findProgramAddress(
-      "used_nonces",
-      [remoteDomain.toString(), firstNonce.toString()],
-      this.messageTransmitterProgram.programId
-    ).publicKey;
-
-    let authorityPda = this.findProgramAddress(
-      "message_transmitter_authority",
-      [this.program.programId],
-      this.messageTransmitterProgram.programId
-    ).publicKey;
-
-    let tokenPair = this.findProgramAddress("token_pair", [
-      remoteDomain.toString(),
-      remoteToken,
-    ]).publicKey;
-
-    let remoteTokenMessenger = this.findProgramAddress(
-      "remote_token_messenger",
-      [remoteDomain.toString()]
-    ).publicKey;
-
-    let accountMetas = [];
-    accountMetas.push({
-      isSigner: false,
-      isWritable: false,
-      pubkey: this.tokenMessenger.publicKey,
-    });
-    accountMetas.push({
-      isSigner: false,
-      isWritable: false,
-      pubkey: remoteTokenMessenger,
-    });
-    accountMetas.push({
-      isSigner: false,
-      isWritable: true,
-      pubkey: this.tokenMinter.publicKey,
-    });
-    accountMetas.push({
-      isSigner: false,
-      isWritable: true,
-      pubkey: this.localToken.publicKey,
-    });
-    accountMetas.push({
-      isSigner: false,
-      isWritable: false,
-      pubkey: tokenPair,
-    });
-    accountMetas.push({
-      isSigner: false,
-      isWritable: true,
-      pubkey: this.userTokenAccount,
-    });
-    accountMetas.push({
-      isSigner: false,
-      isWritable: true,
-      pubkey: this.custodyTokenAccount.publicKey,
-    });
-    accountMetas.push({
-      isSigner: false,
-      isWritable: false,
-      pubkey: spl.TOKEN_PROGRAM_ID,
-    });
-
-    try {
-      await this.messageTransmitterProgram.methods
-        .receiveMessage({
-          message: Buffer.from(message),
-          attestation: Buffer.from(attestation),
-        })
-        .accounts({
-          caller: this.provider.wallet.publicKey,
-          authorityPda,
-          messageTransmitter: this.messageTransmitter.publicKey,
-          usedNonces,
-          receiver: this.program.programId,
-          systemProgram: SystemProgram.programId,
-        })
-        .remainingAccounts(accountMetas)
-        .rpc();
-    } catch (err) {
-      console.log(err);
+    let eventAuthorities = new Map();
+    for (const program of programs) {
+      eventAuthorities.set(
+        program.programId.toString(),
+        this.findProgramAddress(
+          "__event_authority",
+          null,
+          program.programId
+        ).publicKey.toString()
+      );
     }
+
+    let events = [];
+    for (const ixBlock of txResult.meta.innerInstructions) {
+      for (const ix of ixBlock.instructions) {
+        for (const program of programs) {
+          const programStr = program.programId.toString();
+          if (
+            ix.accounts.length === 1 &&
+            txResult.transaction.message.accountKeys[
+              ix.programIdIndex
+            ].toString() === programStr &&
+            txResult.transaction.message.accountKeys[
+              ix.accounts[0]
+            ].toString() === eventAuthorities.get(programStr)
+          ) {
+            const ixData = anchor.utils.bytes.bs58.decode(ix.data);
+            const eventData = anchor.utils.bytes.base64.encode(ixData.slice(8));
+            let event = program.coder.events.decode(eventData);
+            events.push({
+              program: program.programId,
+              data: event.data,
+              name: event.name,
+            });
+          }
+        }
+      }
+    }
+
+    return events;
+  };
+
+  getEvent = (events, program: PublicKey, eventName: string) => {
+    for (const event of events) {
+      if (
+        event.name === eventName &&
+        program.toString() === event.program.toString()
+      ) {
+        return event.data;
+      }
+    }
+    throw new Error("Event " + eventName + " not found");
   };
 
   createBurnMessageBody = (
@@ -677,5 +301,486 @@ export class TestClient {
       );
     }
     return attestation;
+  };
+
+  ///////
+  // instructions
+
+  initialize = async (
+    tokenController: PublicKey,
+    messageBodyVersion: number
+  ) => {
+    let programData = PublicKey.findProgramAddressSync(
+      [this.program.programId.toBuffer()],
+      new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+    )[0];
+
+    return await this.program.methods
+      .initialize({
+        tokenController,
+        localMessageTransmitter: this.messageTransmitterProgram.programId,
+        messageBodyVersion,
+      })
+      .accounts({
+        upgradeAuthority: this.provider.wallet.publicKey,
+        authorityPda: this.authorityPda.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+        tokenMessengerMinterProgramData: programData,
+        tokenMessengerMinterProgram: this.program.programId,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  };
+
+  transferOwnership = async (newOwner: PublicKey) => {
+    let currentOwner = (
+      await this.program.account.tokenMessenger.fetch(
+        this.tokenMessenger.publicKey
+      )
+    ).owner;
+
+    return await this.program.methods
+      .transferOwnership({ newOwner })
+      .accounts({
+        owner: currentOwner,
+        tokenMessenger: this.tokenMessenger.publicKey,
+      })
+      .signers(currentOwner == this.owner.publicKey ? [this.owner] : [])
+      .rpc();
+  };
+
+  acceptOwnership = async (newOwner: Keypair) => {
+    return await this.program.methods
+      .acceptOwnership({})
+      .accounts({
+        pendingOwner: this.owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+      })
+      .signers([newOwner])
+      .rpc();
+    this.owner = newOwner;
+  };
+
+  addRemoteTokenMessenger = async (
+    domain: number,
+    tokenMessenger: PublicKey
+  ) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [domain.toString()]
+    ).publicKey;
+    return await this.program.methods
+      .addRemoteTokenMessenger({ domain, tokenMessenger })
+      .accounts({
+        owner: this.owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        remoteTokenMessenger,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.owner])
+      .rpc();
+  };
+
+  removeRemoteTokenMessenger = async (domain: number) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [domain.toString()]
+    ).publicKey;
+    return await this.program.methods
+      .removeRemoteTokenMessenger({})
+      .accounts({
+        owner: this.owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        remoteTokenMessenger,
+      })
+      .signers([this.owner])
+      .rpc();
+  };
+
+  updatePauser = async (newPauser: PublicKey) => {
+    return await this.program.methods
+      .updatePauser({ newPauser })
+      .accounts({
+        owner: this.owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+      })
+      .signers([this.owner])
+      .rpc();
+  };
+
+  setTokenController = async (tokenController: PublicKey) => {
+    return await this.program.methods
+      .setTokenController({ tokenController })
+      .accounts({
+        owner: this.owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+      })
+      .signers([this.owner])
+      .rpc();
+  };
+
+  pause = async () => {
+    return await this.program.methods
+      .pause({})
+      .accounts({
+        pauser: this.pauser.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+      })
+      .signers([this.pauser])
+      .rpc();
+  };
+
+  unpause = async () => {
+    return await this.program.methods
+      .unpause({})
+      .accounts({
+        pauser: this.pauser.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+      })
+      .signers([this.pauser])
+      .rpc();
+  };
+
+  addLocalToken = async () => {
+    return await this.program.methods
+      .addLocalToken({})
+      .accounts({
+        tokenController: this.tokenController.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+        localToken: this.localToken.publicKey,
+        custodyTokenAccount: this.custodyTokenAccount.publicKey,
+        localTokenMint: this.localTokenMint.publicKey,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.tokenController])
+      .rpc();
+  };
+
+  removeLocalToken = async () => {
+    return await this.program.methods
+      .removeLocalToken({})
+      .accounts({
+        tokenController: this.tokenController.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+        localToken: this.localToken.publicKey,
+        custodyTokenAccount: this.custodyTokenAccount.publicKey,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+      })
+      .signers([this.tokenController])
+      .rpc();
+  };
+
+  setMaxBurnAmountPerMessage = async (burnLimitPerMessage: BN) => {
+    return await this.program.methods
+      .setMaxBurnAmountPerMessage({ burnLimitPerMessage })
+      .accounts({
+        tokenController: this.tokenController.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+        localToken: this.localToken.publicKey,
+      })
+      .signers([this.tokenController])
+      .rpc();
+  };
+
+  linkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
+    let tokenPair = this.findProgramAddress("token_pair", [
+      remoteDomain.toString(),
+      remoteToken,
+    ]);
+
+    return await this.program.methods
+      .linkTokenPair({
+        localToken: this.localToken.publicKey,
+        remoteDomain,
+        remoteToken,
+      })
+      .accounts({
+        tokenController: this.tokenController.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+        tokenPair: tokenPair.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.tokenController])
+      .rpc();
+  };
+
+  unlinkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
+    let tokenPair = this.findProgramAddress("token_pair", [
+      remoteDomain.toString(),
+      remoteToken,
+    ]);
+
+    return await this.program.methods
+      .unlinkTokenPair({ remoteDomain, remoteToken })
+      .accounts({
+        tokenController: this.tokenController.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+        tokenPair: tokenPair.publicKey,
+      })
+      .signers([this.tokenController])
+      .rpc();
+  };
+
+  depositForBurn = async (
+    amount: BN,
+    destinationDomain: number,
+    mintRecipient: PublicKey,
+    messageSentEventAccountKeypair: Keypair
+  ) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [destinationDomain.toString()]
+    ).publicKey;
+
+    return await this.program.methods
+      .depositForBurn({
+        amount,
+        destinationDomain,
+        mintRecipient,
+      })
+      .accounts({
+        owner: this.user.publicKey,
+        eventRentPayer: this.user.publicKey,
+        senderAuthorityPda: this.authorityPda.publicKey,
+        burnTokenAccount: this.userTokenAccount,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        remoteTokenMessenger,
+        tokenMinter: this.tokenMinter.publicKey,
+        localToken: this.localToken.publicKey,
+        burnTokenMint: this.localTokenMint.publicKey,
+        messageSentEventData: messageSentEventAccountKeypair.publicKey,
+        messageTransmitterProgram: this.messageTransmitterProgram.programId,
+        tokenMessengerMinterProgram: this.program.programId,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.user, messageSentEventAccountKeypair])
+      .rpc();
+  };
+
+  depositForBurnWithCaller = async (
+    amount: BN,
+    destinationDomain: number,
+    mintRecipient: PublicKey,
+    destinationCaller: PublicKey,
+    messageSentEventAccountKeypair: Keypair
+  ) => {
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [destinationDomain.toString()]
+    ).publicKey;
+    return await this.program.methods
+      .depositForBurnWithCaller({
+        amount,
+        destinationDomain,
+        mintRecipient,
+        destinationCaller,
+      })
+      .accounts({
+        owner: this.user.publicKey,
+        eventRentPayer: this.user.publicKey,
+        senderAuthorityPda: this.authorityPda.publicKey,
+        burnTokenAccount: this.userTokenAccount,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        remoteTokenMessenger,
+        tokenMinter: this.tokenMinter.publicKey,
+        localToken: this.localToken.publicKey,
+        burnTokenMint: this.localTokenMint.publicKey,
+        messageSentEventData: messageSentEventAccountKeypair.publicKey,
+        messageTransmitterProgram: this.messageTransmitterProgram.programId,
+        tokenMessengerMinterProgram: this.program.programId,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.user, messageSentEventAccountKeypair])
+      .rpc();
+  };
+
+  replaceDepositForBurn = async (
+    originalMessage: number[],
+    originalAttestation: number[],
+    newDestinationCaller: PublicKey,
+    newMintRecipient: PublicKey,
+    messageSentEventAccountKeypair: Keypair
+  ) => {
+    return await this.program.methods
+      .replaceDepositForBurn({
+        originalMessage: Buffer.from(originalMessage),
+        originalAttestation: Buffer.from(originalAttestation),
+        newDestinationCaller,
+        newMintRecipient,
+      })
+      .accounts({
+        owner: this.user.publicKey,
+        eventRentPayer: this.user.publicKey,
+        senderAuthorityPda: this.authorityPda.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        messageSentEventData: messageSentEventAccountKeypair.publicKey,
+        messageTransmitterEventAuthority:
+          this.messageTransmitterEventAuthority.publicKey,
+        messageTransmitterProgram: this.messageTransmitterProgram.programId,
+        tokenMessengerMinterProgram: this.program.programId,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.user, messageSentEventAccountKeypair])
+      .rpc();
+  };
+
+  enableAttester = async (newAttester: PublicKey) => {
+    return await this.messageTransmitterProgram.methods
+      .enableAttester({ newAttester })
+      .accounts({
+        attesterManager: this.provider.wallet.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  };
+
+  disableAttester = async (attester: PublicKey) => {
+    return await this.messageTransmitterProgram.methods
+      .disableAttester({ attester })
+      .accounts({
+        attesterManager: this.provider.wallet.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  };
+
+  setSignatureThreshold = async (newSignatureThreshold: number) => {
+    return await this.messageTransmitterProgram.methods
+      .setSignatureThreshold({ newSignatureThreshold })
+      .accounts({
+        attesterManager: this.provider.wallet.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+      })
+      .rpc();
+  };
+
+  receiveMessage = async (
+    remoteDomain: number,
+    remoteToken: PublicKey,
+    nonce: bigint,
+    message: number[],
+    attestation: number[]
+  ) => {
+    let maxNonces = 6400;
+    const firstNonce =
+      ((nonce - BigInt(1)) / BigInt(maxNonces)) * BigInt(maxNonces) + BigInt(1);
+    const usedNonces = this.findProgramAddress(
+      "used_nonces",
+      [remoteDomain.toString(), firstNonce.toString()],
+      this.messageTransmitterProgram.programId
+    ).publicKey;
+
+    let authorityPda = this.findProgramAddress(
+      "message_transmitter_authority",
+      [this.program.programId],
+      this.messageTransmitterProgram.programId
+    ).publicKey;
+
+    let tokenPair = this.findProgramAddress("token_pair", [
+      remoteDomain.toString(),
+      remoteToken,
+    ]).publicKey;
+
+    let remoteTokenMessenger = this.findProgramAddress(
+      "remote_token_messenger",
+      [remoteDomain.toString()]
+    ).publicKey;
+
+    let accountMetas = [];
+    accountMetas.push({
+      isSigner: false,
+      isWritable: false,
+      pubkey: this.tokenMessenger.publicKey,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: false,
+      pubkey: remoteTokenMessenger,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: true,
+      pubkey: this.tokenMinter.publicKey,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: true,
+      pubkey: this.localToken.publicKey,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: false,
+      pubkey: tokenPair,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: true,
+      pubkey: this.userTokenAccount,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: true,
+      pubkey: this.custodyTokenAccount.publicKey,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: false,
+      pubkey: spl.TOKEN_PROGRAM_ID,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: false,
+      pubkey: this.tokenMessengerEventAuthority.publicKey,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: false,
+      pubkey: this.program.programId,
+    });
+
+    return await this.messageTransmitterProgram.methods
+      .receiveMessage({
+        message: Buffer.from(message),
+        attestation: Buffer.from(attestation),
+      })
+      .accounts({
+        caller: this.provider.wallet.publicKey,
+        authorityPda,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        usedNonces,
+        receiver: this.program.programId,
+        systemProgram: SystemProgram.programId,
+      })
+      .remainingAccounts(accountMetas)
+      .rpc();
+  };
+
+  reclaimEventAccount = async (
+    payee: Keypair,
+    attestation: number[],
+    messageSentEventAccount: PublicKey
+  ) => {
+    return await this.messageTransmitterProgram.methods
+      .reclaimEventAccount({
+        attestation: Buffer.from(attestation),
+      })
+      .accounts({
+        payee: payee.publicKey,
+        messageTransmitter: this.messageTransmitter.publicKey,
+        messageSentEventData: messageSentEventAccount,
+      })
+      .signers([payee])
+      .rpc();
   };
 }

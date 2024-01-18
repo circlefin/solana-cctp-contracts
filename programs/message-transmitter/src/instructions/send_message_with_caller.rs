@@ -8,12 +8,15 @@ use {
 // Instruction accounts are the same as for SendMessage instruction
 
 // Instruction parameters
+// NOTE: Do not reorder parameters fields. repr(C) is used to fix the layout of the struct
+// so SendMessageWithCallerParams can be deserialized as SendMessageParams.
+#[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct SendMessageWithCallerParams {
     pub destination_domain: u32,
     pub recipient: Pubkey,
-    pub destination_caller: Pubkey,
     pub message_body: Vec<u8>,
+    pub destination_caller: Pubkey,
 }
 
 // Instruction handler
@@ -30,6 +33,8 @@ pub fn send_message_with_caller(
     // send message
     crate::instructions::send_message_helper(
         ctx.accounts.message_transmitter.as_mut(),
+        ctx.accounts.message_sent_event_data.as_mut(),
+        &ctx.accounts.event_rent_payer.key(),
         params.destination_domain,
         &params.recipient,
         &params.destination_caller,

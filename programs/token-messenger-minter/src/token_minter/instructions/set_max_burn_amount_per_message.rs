@@ -10,6 +10,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct SetMaxBurnAmountPerMessageContext<'info> {
     #[account()]
@@ -46,7 +47,7 @@ pub fn set_max_burn_amount_per_message(
 
     local_token.burn_limit_per_message = params.burn_limit_per_message;
 
-    emit!(SetBurnLimitPerMessage {
+    emit_cpi!(SetBurnLimitPerMessage {
         token: local_token.mint,
         burn_limit_per_message: local_token.burn_limit_per_message
     });

@@ -9,6 +9,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct SetTokenControllerContext<'info> {
     #[account()]
@@ -42,7 +43,7 @@ pub fn set_token_controller(
 
     ctx.accounts.token_minter.token_controller = params.token_controller;
 
-    emit!(SetTokenController {
+    emit_cpi!(SetTokenController {
         token_controller: ctx.accounts.token_minter.token_controller
     });
 

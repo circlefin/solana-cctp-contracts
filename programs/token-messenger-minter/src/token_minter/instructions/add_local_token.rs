@@ -12,6 +12,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct AddLocalTokenContext<'info> {
     #[account(mut)]
@@ -86,7 +87,7 @@ pub fn add_local_token(
         TokenMinterError::InvalidLocalTokenState
     );
 
-    emit!(LocalTokenAdded {
+    emit_cpi!(LocalTokenAdded {
         custody: local_token.custody,
         mint: local_token.mint,
     });

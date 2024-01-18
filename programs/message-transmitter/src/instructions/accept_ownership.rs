@@ -8,6 +8,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct AcceptOwnershipContext<'info> {
     #[account()]
@@ -37,7 +38,7 @@ pub fn accept_ownership(
     message_transmitter.owner = message_transmitter.pending_owner;
     message_transmitter.pending_owner = Pubkey::default();
 
-    emit!(OwnershipTransferred {
+    emit_cpi!(OwnershipTransferred {
         previous_owner,
         new_owner: message_transmitter.owner
     });

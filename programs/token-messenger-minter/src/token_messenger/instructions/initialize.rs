@@ -11,6 +11,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct InitializeContext<'info> {
     #[account(mut)]
@@ -109,7 +110,7 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
         TokenMinterError::InvalidTokenMinterState
     );
 
-    emit!(SetTokenController {
+    emit_cpi!(SetTokenController {
         token_controller: params.token_controller
     });
 

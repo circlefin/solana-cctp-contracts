@@ -8,6 +8,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct TransferOwnershipContext<'info> {
     #[account()]
@@ -45,7 +46,7 @@ pub fn transfer_ownership(
 
     message_transmitter.pending_owner = params.new_owner;
 
-    emit!(OwnershipTransferStarted {
+    emit_cpi!(OwnershipTransferStarted {
         previous_owner: message_transmitter.owner,
         new_owner: message_transmitter.pending_owner
     });

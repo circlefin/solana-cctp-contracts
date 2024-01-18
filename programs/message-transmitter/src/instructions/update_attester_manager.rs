@@ -8,6 +8,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct UpdateAttesterManagerContext<'info> {
     #[account()]
@@ -46,7 +47,7 @@ pub fn update_attester_manager(
 
     ctx.accounts.message_transmitter.attester_manager = params.new_attester_manager;
 
-    emit!(AttesterManagerUpdated {
+    emit_cpi!(AttesterManagerUpdated {
         previous_attester_manager,
         new_attester_manager: params.new_attester_manager
     });

@@ -45,7 +45,9 @@ Because TokenMessengers and TokenMinter can be deployed permissionlessly by ecos
 
 Solana CCTP programs are written in Rust and leverages Anchor framework that makes it easier and more efficient for developers to create, deploy, and manage smart contracts on the Solana blockchain. Along with the program, an IDL (Interface Description Language) can be generated and deployed on-chain making it much easier for developers to interact with the CCTP program. See [Deployment guide](#deployment-guide) for more details.
 
-To facilitate more efficient indexing and enable the rebuilding of message history, events are triggered alongside the standard logs.
+Each CCTP program instruction emits one or more events upon execution. Depending on the purpose of instruction, events are emitted via Anchor's CPI events functionality or by creating new stand-alone accounts where such events are stored. Stand-alone account addresses are randomly generated on a client and passed to the program. The program initializes the account, writes the event, and sets itself as the owner. Replace instructions don't update previously created event accounts but create new ones. This is done to make it easier for the client to generate a replace instruction because it doesn't need to look up the original account address. At this time, only `MessageSent` events are emitted via stand-alone accounts.
+
+Backend services can observe new account-based events by introspecting instructions and extracting event account addresses. Once the event has been processed, the account could be deleted and rent SOL reclaimed with `reclaimEventAccount` instruction. Rent SOL can only be returned to the original rent payer.
 
 ## MessageTransmitter Module
 
@@ -125,8 +127,8 @@ Send a message to the destination domain and recipient, for a specified destinat
 | ----------------- | :------: | ------------------------------------------------------- |
 | destinationDomain |   u32    | Destination domain identifier                           |
 | recipient         |  Pubkey  | Address to handle message body on destination domain    |
-| destinationCaller |  Pubkey  | Caller on the destination domain                        |
 | messageBody       | Vec\<u8> | Application-specific message to be handled by recipient |
+| destinationCaller |  Pubkey  | Caller on the destination domain                        |
 
 `replaceMessage`
 
@@ -186,6 +188,14 @@ Resume MessageTransmitter.
 | Parameter | Type | Description |
 | --------- | :--: | ----------- |
 | None      |      |             |
+
+`reclaimEventAccount`
+
+Deletes the event account and reclaims rent SOL to the original rent payer. This instruction requires a valid attestation to be executed.
+
+| Parameter   |   Type   | Description                |
+| ----------- | :------: | -------------------------- |
+| attestation | Vec\<u8> | Attestation of the message |
 
 ### **State**
 
@@ -254,9 +264,10 @@ On-chain account that stores used nonces.
 
 Emitted when a new message is dispatched.
 
-| Field   |   Type   | Description          |
-| ------- | :------: | -------------------- |
-| message | Vec\<u8> | Raw bytes of message |
+| Field      |   Type   | Description          |
+| ---------- | :------: | -------------------- |
+| rent_payer |  Pubkey  | Account rent payer   |
+| message    | Vec\<u8> | Raw bytes of message |
 
 `MessageReceived`
 

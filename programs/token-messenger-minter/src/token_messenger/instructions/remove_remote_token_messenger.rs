@@ -10,6 +10,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct RemoveRemoteTokenMessengerContext<'info> {
     #[account(mut)]
@@ -44,7 +45,7 @@ pub fn remove_remote_token_messenger(
     ctx: Context<RemoveRemoteTokenMessengerContext>,
     _params: &RemoveRemoteTokenMessengerParams,
 ) -> Result<()> {
-    emit!(RemoteTokenMessengerRemoved {
+    emit_cpi!(RemoteTokenMessengerRemoved {
         domain: ctx.accounts.remote_token_messenger.domain,
         token_messenger: ctx.accounts.remote_token_messenger.token_messenger
     });

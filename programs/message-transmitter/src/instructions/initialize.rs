@@ -12,6 +12,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct InitializeContext<'info> {
     #[account(mut)]
@@ -79,11 +80,11 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
         MessageTransmitterError::InvalidMessageTransmitterState
     );
 
-    emit!(AttesterEnabled {
+    emit_cpi!(AttesterEnabled {
         attester: params.attester
     });
 
-    emit!(AttesterManagerUpdated {
+    emit_cpi!(AttesterManagerUpdated {
         previous_attester_manager: Pubkey::default(),
         new_attester_manager: authority
     });

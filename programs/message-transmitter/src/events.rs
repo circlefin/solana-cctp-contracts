@@ -1,6 +1,9 @@
 //! Events
 
-use anchor_lang::prelude::*;
+use {
+    crate::{message::Message, utils},
+    anchor_lang::prelude::*,
+};
 
 #[event]
 pub struct OwnershipTransferStarted {
@@ -25,9 +28,27 @@ pub struct AttesterManagerUpdated {
     pub new_attester_manager: Pubkey,
 }
 
-#[event]
+#[account]
+#[derive(Debug, InitSpace)]
 pub struct MessageSent {
+    pub rent_payer: Pubkey,
+    #[max_len(1)]
     pub message: Vec<u8>,
+}
+
+impl MessageSent {
+    pub fn len(message_body_len: usize) -> Result<usize> {
+        // MessageSent::INIT_SPACE returns serialized size of the MessageSent struct
+        // assuming max len of MessageSent::message vector is 1 (as specified with #[max_len(1)]).
+        // We subtract that 1 byte and add the full length of the message body instead.
+        utils::checked_add(
+            utils::checked_sub(
+                utils::checked_add(utils::DISCRIMINATOR_SIZE, MessageSent::INIT_SPACE)?,
+                1,
+            )?,
+            Message::serialized_len(message_body_len)?,
+        )
+    }
 }
 
 #[event]

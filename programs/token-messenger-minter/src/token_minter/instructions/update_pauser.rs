@@ -9,6 +9,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct UpdatePauserContext<'info> {
     #[account()]
@@ -39,7 +40,7 @@ pub fn update_pauser(ctx: Context<UpdatePauserContext>, params: &UpdatePauserPar
 
     ctx.accounts.token_minter.pauser = params.new_pauser;
 
-    emit!(PauserChanged {
+    emit_cpi!(PauserChanged {
         new_address: ctx.accounts.token_minter.pauser
     });
 

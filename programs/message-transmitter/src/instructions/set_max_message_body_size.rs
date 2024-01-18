@@ -9,6 +9,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct SetMaxMessageBodySizeContext<'info> {
     #[account()]
@@ -34,7 +35,7 @@ pub fn set_max_message_body_size(
 ) -> Result<()> {
     ctx.accounts.message_transmitter.max_message_body_size = params.new_max_message_body_size;
 
-    emit!(MaxMessageBodySizeUpdated {
+    emit_cpi!(MaxMessageBodySizeUpdated {
         new_max_message_body_size: ctx.accounts.message_transmitter.max_message_body_size
     });
 

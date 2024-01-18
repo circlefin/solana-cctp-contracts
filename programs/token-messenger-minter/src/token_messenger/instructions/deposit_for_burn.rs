@@ -21,11 +21,15 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 #[instruction(params: DepositForBurnParams)]
 pub struct DepositForBurnContext<'info> {
     #[account()]
     pub owner: Signer<'info>,
+
+    #[account(mut)]
+    pub event_rent_payer: Signer<'info>,
 
     /// CHECK: empty PDA, used to check that sendMessage was called by TokenMessenger
     #[account(
@@ -68,15 +72,24 @@ pub struct DepositForBurnContext<'info> {
     #[account(mut)]
     pub burn_token_mint: Box<Account<'info, Mint>>,
 
+    /// CHECK: Account to store MessageSent event data in. Any non-PDA uninitialized address.
+    #[account(mut)]
+    pub message_sent_event_data: Signer<'info>,
+
     pub message_transmitter_program:
         Program<'info, message_transmitter::program::MessageTransmitter>,
 
     pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinter>,
 
     pub token_program: Program<'info, Token>,
+
+    pub system_program: Program<'info, System>,
 }
 
 // Instruction parameters
+// NOTE: Do not reorder parameters fields. repr(C) is used to fix the layout of the struct
+// so DepositForBurnWithCallerParams can be deserialized as DepositForBurnParams.
+#[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct DepositForBurnParams {
     pub amount: u64,
@@ -134,12 +147,15 @@ pub fn deposit_for_burn_helper(
     // CPI into Message Transmitter
     let cpi_program = ctx.accounts.message_transmitter_program.to_account_info();
     let cpi_accounts = SendMessageContext {
+        event_rent_payer: ctx.accounts.event_rent_payer.to_account_info(),
         sender_authority_pda: ctx.accounts.sender_authority_pda.to_account_info(),
         message_transmitter: ctx.accounts.message_transmitter.to_account_info(),
+        message_sent_event_data: ctx.accounts.message_sent_event_data.to_account_info(),
         sender_program: ctx
             .accounts
             .token_messenger_minter_program
             .to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
     let authority_seeds: &[&[&[u8]]] = &[&[
         b"sender_authority",
@@ -164,7 +180,7 @@ pub fn deposit_for_burn_helper(
         message_transmitter::cpi::send_message_with_caller(cpi_ctx, cpi_params)?.get()
     };
 
-    emit!(DepositForBurn {
+    emit_cpi!(DepositForBurn {
         nonce,
         burn_token: ctx.accounts.burn_token_mint.key(),
         amount,

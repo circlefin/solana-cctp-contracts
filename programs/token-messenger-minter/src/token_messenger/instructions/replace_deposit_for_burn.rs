@@ -16,10 +16,14 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct ReplaceDepositForBurnContext<'info> {
     #[account()]
     pub owner: Signer<'info>,
+
+    #[account(mut)]
+    pub event_rent_payer: Signer<'info>,
 
     /// CHECK: empty PDA, used to check that replaceMessage was called by TokenMessenger
     #[account(
@@ -34,10 +38,16 @@ pub struct ReplaceDepositForBurnContext<'info> {
     #[account()]
     pub token_messenger: Box<Account<'info, TokenMessenger>>,
 
+    /// CHECK: Account to store MessageSent event data in. Any non-PDA uninitialized address.
+    #[account(mut)]
+    pub message_sent_event_data: Signer<'info>,
+
     pub message_transmitter_program:
         Program<'info, message_transmitter::program::MessageTransmitter>,
 
     pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinter>,
+
+    pub system_program: Program<'info, System>,
 }
 
 // Instruction parameters
@@ -88,12 +98,15 @@ pub fn replace_deposit_for_burn(
     // CPI into Message Transmitter
     let cpi_program = ctx.accounts.message_transmitter_program.to_account_info();
     let cpi_accounts = ReplaceMessageContext {
+        event_rent_payer: ctx.accounts.event_rent_payer.to_account_info(),
         sender_authority_pda: ctx.accounts.sender_authority_pda.to_account_info(),
         message_transmitter: ctx.accounts.message_transmitter.to_account_info(),
+        message_sent_event_data: ctx.accounts.message_sent_event_data.to_account_info(),
         sender_program: ctx
             .accounts
             .token_messenger_minter_program
             .to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
     let authority_seeds: &[&[&[u8]]] = &[&[
         b"sender_authority",
@@ -109,7 +122,7 @@ pub fn replace_deposit_for_burn(
     };
     let nonce = message_transmitter::cpi::replace_message(cpi_ctx, cpi_params)?.get();
 
-    emit!(DepositForBurn {
+    emit_cpi!(DepositForBurn {
         nonce,
         burn_token,
         amount,

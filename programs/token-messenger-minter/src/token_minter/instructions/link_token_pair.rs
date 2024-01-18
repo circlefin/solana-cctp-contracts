@@ -11,6 +11,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 #[instruction(params: LinkTokenPairParams)]
 pub struct LinkTokenPairContext<'info> {
@@ -71,7 +72,7 @@ pub fn link_token_pair(
         TokenMinterError::InvalidTokenPairState
     );
 
-    emit!(TokenPairLinked {
+    emit_cpi!(TokenPairLinked {
         local_token: params.local_token,
         remote_domain: params.remote_domain,
         remote_token: params.remote_token

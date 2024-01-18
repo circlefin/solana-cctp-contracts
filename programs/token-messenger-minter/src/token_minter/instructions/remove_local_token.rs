@@ -11,6 +11,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct RemoveLocalTokenContext<'info> {
     #[account(mut)]
@@ -66,7 +67,7 @@ pub fn remove_local_token(
         ctx.accounts.token_minter.to_account_info(),
     )?;
 
-    emit!(LocalTokenRemoved {
+    emit_cpi!(LocalTokenRemoved {
         custody: local_token.custody,
         mint: local_token.mint,
     });

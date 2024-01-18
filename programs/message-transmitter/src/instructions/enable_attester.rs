@@ -9,6 +9,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct EnableAttesterContext<'info> {
     #[account(mut)]
@@ -62,7 +63,7 @@ pub fn enable_attester(
         .enabled_attesters
         .push(params.new_attester);
 
-    emit!(AttesterEnabled {
+    emit_cpi!(AttesterEnabled {
         attester: params.new_attester
     });
 

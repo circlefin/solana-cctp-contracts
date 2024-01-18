@@ -122,4 +122,11 @@ pub mod message_transmitter {
     ) -> Result<()> {
         instructions::receive_message(ctx, &params)
     }
+
+    pub fn reclaim_event_account(
+        ctx: Context<ReclaimEventAccountContext>,
+        params: ReclaimEventAccountParams,
+    ) -> Result<()> {
+        instructions::reclaim_event_account(ctx, &params)
+    }
 }

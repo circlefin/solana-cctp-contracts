@@ -6,6 +6,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct PauseContext<'info> {
     #[account()]
@@ -31,7 +32,7 @@ pub fn pause(ctx: Context<PauseContext>, _params: &PauseParams) -> Result<()> {
 
     ctx.accounts.message_transmitter.paused = true;
 
-    emit!(Pause {});
+    emit_cpi!(Pause {});
 
     Ok(())
 }

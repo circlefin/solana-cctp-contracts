@@ -10,6 +10,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct UnlinkTokenPairContext<'info> {
     #[account(mut)]
@@ -47,7 +48,7 @@ pub fn unlink_token_pair(
 ) -> Result<()> {
     let token_pair = ctx.accounts.token_pair.as_ref();
 
-    emit!(TokenPairUnlinked {
+    emit_cpi!(TokenPairUnlinked {
         local_token: token_pair.local_token,
         remote_domain: token_pair.remote_domain,
         remote_token: token_pair.remote_token

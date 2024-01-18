@@ -25,6 +25,7 @@ use {
 /// /////////////////////////////////////////////////////////////////////////
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 #[instruction(params: HandleReceiveMessageParams)]
 pub struct HandleReceiveMessageContext<'info> {
@@ -133,7 +134,7 @@ pub fn handle_receive_message(
         amount,
     )?;
 
-    emit!(MintAndWithdraw {
+    emit_cpi!(MintAndWithdraw {
         mint_recipient,
         amount,
         mint_token: ctx.accounts.local_token.mint

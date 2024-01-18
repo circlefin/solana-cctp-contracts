@@ -8,9 +8,12 @@ use {
     anchor_lang::prelude::*,
 };
 
-// Instruction accounts are the same as for SendMessage instruction
+// Instruction accounts are the same as for DepositForBurn instruction
 
 // Instruction parameters
+// NOTE: Do not reorder parameters fields. repr(C) is used to fix the layout of the struct
+// so DepositForBurnWithCallerParams can be deserialized as DepositForBurnParams.
+#[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct DepositForBurnWithCallerParams {
     pub amount: u64,

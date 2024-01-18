@@ -6,6 +6,7 @@ use {
 };
 
 // Instruction accounts
+#[event_cpi]
 #[derive(Accounts)]
 pub struct UnpauseContext<'info> {
     #[account()]
@@ -26,7 +27,7 @@ pub struct UnpauseParams {}
 pub fn unpause(ctx: Context<UnpauseContext>, _params: &UnpauseParams) -> Result<()> {
     ctx.accounts.token_minter.paused = false;
 
-    emit!(Unpause {});
+    emit_cpi!(Unpause {});
 
     Ok(())
 }
