@@ -9,25 +9,29 @@ describe("message_transmitter", () => {
 
   let messageTransmitterExpected;
 
-  let localDomain = 123;
-  let version = 0;
+  const localDomain = 123;
+  const version = 0;
 
-  let attesterPrivateKey1 = Buffer.from(
+  const attesterPrivateKey1 = Buffer.from(
     "160bb136f958af14b6abc453ed1cefd323fb7c13c3d753788471a75c44127fbc",
     "hex"
   );
-  let attester1 = new PublicKey(ethutil.privateToAddress(attesterPrivateKey1));
-  let attesterPrivateKey2 = Buffer.from(
+  const attester1 = new PublicKey(
+    ethutil.privateToAddress(attesterPrivateKey1)
+  );
+  const attesterPrivateKey2 = Buffer.from(
     "dbdcf3e6a58e4c03f4e2c68721e2f0d3ee246482cf13edb1533a547490feea9c",
     "hex"
   );
-  let attester2 = new PublicKey(ethutil.privateToAddress(attesterPrivateKey2));
+  const attester2 = new PublicKey(
+    ethutil.privateToAddress(attesterPrivateKey2)
+  );
 
   it("initialize", async () => {
     await tc.initFixture();
     await tc.initialize(localDomain, attester1, new BN(200), version);
 
-    let err = await tc.ensureFails(
+    const err = await tc.ensureFails(
       tc.initialize(localDomain, attester1, new BN(200), version)
     );
     assert(err.logs[3].includes("already in use"));
@@ -46,19 +50,20 @@ describe("message_transmitter", () => {
       nextAvailableNonce: "1",
     };
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
   });
 
   it("transferOwnership", async () => {
-    let signature = await tc.transferOwnership(tc.owner.publicKey);
+    const signature = await tc.transferOwnership(tc.owner.publicKey);
 
-    let events = await tc.readEvents(signature, [tc.program]);
-    let ownershipTransferStarted = tc.getEvent(
+    const events = await tc.readEvents(signature, [tc.program]);
+    const ownershipTransferStarted = tc.getEvent(
       events,
       tc.program.programId,
       "OwnershipTransferStarted"
@@ -66,14 +71,15 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.pendingOwner = tc.owner.publicKey;
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
 
-    let eventExpected = {
+    const eventExpected = {
       previousOwner: tc.provider.wallet.publicKey,
       newOwner: tc.owner.publicKey,
     };
@@ -83,10 +89,10 @@ describe("message_transmitter", () => {
   });
 
   it("acceptOwnership", async () => {
-    let signature = await tc.acceptOwnership(tc.owner);
+    const signature = await tc.acceptOwnership(tc.owner);
 
-    let events = await tc.readEvents(signature, [tc.program]);
-    let ownershipTransferred = tc.getEvent(
+    const events = await tc.readEvents(signature, [tc.program]);
+    const ownershipTransferred = tc.getEvent(
       events,
       tc.program.programId,
       "OwnershipTransferred"
@@ -95,14 +101,15 @@ describe("message_transmitter", () => {
     messageTransmitterExpected.owner = tc.owner.publicKey;
     messageTransmitterExpected.pendingOwner = PublicKey.default;
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
 
-    let eventExpected = {
+    const eventExpected = {
       previousOwner: tc.provider.wallet.publicKey,
       newOwner: tc.owner.publicKey,
     };
@@ -116,9 +123,10 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.pauser = tc.pauser.publicKey;
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
@@ -129,9 +137,10 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.attesterManager = tc.attesterManager.publicKey;
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
@@ -142,9 +151,10 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.paused = true;
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
@@ -155,9 +165,10 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.paused = false;
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
@@ -168,9 +179,10 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.maxMessageBodySize = new BN(300);
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
@@ -181,9 +193,10 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.enabledAttesters = [attester1, attester2];
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
@@ -194,9 +207,10 @@ describe("message_transmitter", () => {
 
     messageTransmitterExpected.signatureThreshold = 2;
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );
@@ -209,9 +223,10 @@ describe("message_transmitter", () => {
     messageTransmitterExpected.signatureThreshold = 1;
     messageTransmitterExpected.enabledAttesters = [attester1];
 
-    let messageTransmitter = await tc.program.account.messageTransmitter.fetch(
-      tc.messageTransmitter.publicKey
-    );
+    const messageTransmitter =
+      await tc.program.account.messageTransmitter.fetch(
+        tc.messageTransmitter.publicKey
+      );
     expect(JSON.stringify(messageTransmitter)).to.equal(
       JSON.stringify(messageTransmitterExpected)
     );

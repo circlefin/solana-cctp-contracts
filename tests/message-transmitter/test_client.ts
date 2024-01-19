@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { MessageTransmitter } from "../../target/types/message_transmitter";
+import * as utils from "../utils";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
-import * as spl from "@solana/spl-token";
 import BN from "bn.js";
 
 export class TestClient {
@@ -41,101 +41,28 @@ export class TestClient {
     extraSeeds = null,
     program = this.program.programId
   ) => {
-    let seeds = [Buffer.from(anchor.utils.bytes.utf8.encode(label))];
-    if (extraSeeds) {
-      for (let extraSeed of extraSeeds) {
-        if (typeof extraSeed === "string") {
-          seeds.push(Buffer.from(anchor.utils.bytes.utf8.encode(extraSeed)));
-        } else if (Array.isArray(extraSeed)) {
-          seeds.push(Buffer.from(extraSeed));
-        } else if (Buffer.isBuffer(extraSeed)) {
-          seeds.push(extraSeed);
-        } else {
-          seeds.push(extraSeed.toBuffer());
-        }
-      }
-    }
-    let res = PublicKey.findProgramAddressSync(seeds, program);
-    return { publicKey: res[0], bump: res[1] };
+    return utils.findProgramAddress(label, program, extraSeeds);
   };
 
   ensureFails = async (promise, message = null) => {
-    try {
-      await promise;
-    } catch (err) {
-      return err;
-    }
-    throw new Error(message ? message : "Call should've failed");
+    return utils.ensureFails(promise, message);
   };
 
   // Convert a hex string to a byte array
   hexToBytes = (hex: string) => {
-    let bytes = [];
-    for (let c = 0; c < hex.length; c += 2)
-      bytes.push(parseInt(hex.substr(c, 2), 16));
-    return bytes;
+    return utils.hexToBytes(hex);
   };
 
   readEvents = async (txSignature: string, programs) => {
-    await this.program.provider.connection.confirmTransaction(txSignature);
-    const config = { commitment: "confirmed" } as const;
-    const txResult = await this.program.provider.connection.getTransaction(
+    return utils.readEvents(
+      this.program.provider.connection,
       txSignature,
-      config
+      programs
     );
-
-    let eventAuthorities = new Map();
-    for (const program of programs) {
-      eventAuthorities.set(
-        program.programId.toString(),
-        this.findProgramAddress(
-          "__event_authority",
-          null,
-          program.programId
-        ).publicKey.toString()
-      );
-    }
-
-    let events = [];
-    for (const ixBlock of txResult.meta.innerInstructions) {
-      for (const ix of ixBlock.instructions) {
-        for (const program of programs) {
-          const programStr = program.programId.toString();
-          if (
-            ix.accounts.length === 1 &&
-            txResult.transaction.message.accountKeys[
-              ix.programIdIndex
-            ].toString() === programStr &&
-            txResult.transaction.message.accountKeys[
-              ix.accounts[0]
-            ].toString() === eventAuthorities.get(programStr)
-          ) {
-            const ixData = anchor.utils.bytes.bs58.decode(ix.data);
-            const eventData = anchor.utils.bytes.base64.encode(ixData.slice(8));
-            let event = program.coder.events.decode(eventData);
-            events.push({
-              program: program.programId,
-              data: event.data,
-              name: event.name,
-            });
-          }
-        }
-      }
-    }
-
-    return events;
   };
 
   getEvent = (events, program: PublicKey, eventName: string) => {
-    for (const event of events) {
-      if (
-        event.name === eventName &&
-        program.toString() === event.program.toString()
-      ) {
-        return event.data;
-      }
-    }
-    throw new Error("Event " + eventName + " not found");
+    return utils.getEvent(events, program, eventName);
   };
 
   ///////
@@ -147,7 +74,7 @@ export class TestClient {
     maxMessageBodySize: BN,
     version: number
   ) => {
-    let programData = PublicKey.findProgramAddressSync(
+    const programData = PublicKey.findProgramAddressSync(
       [this.program.programId.toBuffer()],
       new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0];
@@ -170,7 +97,7 @@ export class TestClient {
   };
 
   transferOwnership = async (newOwner: PublicKey) => {
-    let currentOwner = (
+    const currentOwner = (
       await this.program.account.messageTransmitter.fetch(
         this.messageTransmitter.publicKey
       )

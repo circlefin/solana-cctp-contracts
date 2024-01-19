@@ -127,6 +127,7 @@ pub fn deposit_for_burn_helper(
         TokenMessengerError::InvalidMintRecipient
     );
 
+    // burn user's tokens
     ctx.accounts.token_minter.burn(
         ctx.accounts.burn_token_mint.to_account_info(),
         ctx.accounts.burn_token_account.to_account_info(),
@@ -136,6 +137,7 @@ pub fn deposit_for_burn_helper(
         amount,
     )?;
 
+    // format burn message to be passed to Message Transmitter
     let burn_message = BurnMessage::format_message(
         ctx.accounts.token_messenger.message_body_version,
         &ctx.accounts.burn_token_mint.key(),
@@ -146,6 +148,9 @@ pub fn deposit_for_burn_helper(
 
     // CPI into Message Transmitter
     let cpi_program = ctx.accounts.message_transmitter_program.to_account_info();
+
+    // prepare context for the CPI call,
+    // the same context is used for SendMessage and SendMessageWithCaller
     let cpi_accounts = SendMessageContext {
         event_rent_payer: ctx.accounts.event_rent_payer.to_account_info(),
         sender_authority_pda: ctx.accounts.sender_authority_pda.to_account_info(),
@@ -157,12 +162,15 @@ pub fn deposit_for_burn_helper(
             .to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
     };
+
     let authority_seeds: &[&[&[u8]]] = &[&[
         b"sender_authority",
         &[ctx.accounts.token_messenger.authority_bump],
     ]];
+
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, authority_seeds);
 
+    // call SendMessage or SendMessageWithCaller on MessageTransmitter and get the message nonce
     let nonce = if destination_caller == &Pubkey::default() {
         let cpi_params = SendMessageParams {
             destination_domain,
@@ -180,6 +188,7 @@ pub fn deposit_for_burn_helper(
         message_transmitter::cpi::send_message_with_caller(cpi_ctx, cpi_params)?.get()
     };
 
+    // emit DepositForBurn event
     emit_cpi!(DepositForBurn {
         nonce,
         burn_token: ctx.accounts.burn_token_mint.key(),

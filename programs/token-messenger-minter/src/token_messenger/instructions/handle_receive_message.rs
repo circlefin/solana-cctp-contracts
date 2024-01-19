@@ -29,6 +29,8 @@ use {
 #[derive(Accounts)]
 #[instruction(params: HandleReceiveMessageParams)]
 pub struct HandleReceiveMessageContext<'info> {
+    // authority_pda is a Signer to ensure that this instruction
+    // can only be called by Message Transmitter
     #[account(
         seeds = [b"message_transmitter_authority", crate::ID.as_ref()],
         bump = params.authority_bump,
@@ -111,11 +113,14 @@ pub fn handle_receive_message(
         TokenMessengerError::InvalidTokenMessenger
     );
 
+    // initialize burn message from the message_body while checking
+    // for length and message version
     let burn_message = BurnMessage::new(
         ctx.accounts.token_messenger.message_body_version,
         &params.message_body,
     )?;
 
+    // validate mint recipient
     let mint_recipient = burn_message.mint_recipient()?;
     let amount = burn_message.amount()?;
 
@@ -125,6 +130,7 @@ pub fn handle_receive_message(
         TokenMessengerError::InvalidMintRecipient
     );
 
+    // transfer tokens
     ctx.accounts.token_minter.transfer(
         ctx.accounts.custody_token_account.to_account_info(),
         ctx.accounts.recipient_token_account.to_account_info(),
@@ -134,6 +140,7 @@ pub fn handle_receive_message(
         amount,
     )?;
 
+    // emit MintAndWithdraw event
     emit_cpi!(MintAndWithdraw {
         mint_recipient,
         amount,

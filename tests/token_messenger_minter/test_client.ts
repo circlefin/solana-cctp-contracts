@@ -1,13 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as ethutil from "ethereumjs-util";
+import * as utils from "../utils";
 import { TokenMessengerMinter } from "../../target/types/token_messenger_minter";
 import { MessageTransmitter } from "../../target/types/message_transmitter";
-import {
-  PublicKey,
-  Keypair,
-  SystemProgram,
-  ConfirmOptions,
-} from "@solana/web3.js";
+import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import BN from "bn.js";
 
@@ -116,101 +112,28 @@ export class TestClient {
     extraSeeds = null,
     program = this.program.programId
   ) => {
-    let seeds = [Buffer.from(anchor.utils.bytes.utf8.encode(label))];
-    if (extraSeeds) {
-      for (let extraSeed of extraSeeds) {
-        if (typeof extraSeed === "string") {
-          seeds.push(Buffer.from(anchor.utils.bytes.utf8.encode(extraSeed)));
-        } else if (Array.isArray(extraSeed)) {
-          seeds.push(Buffer.from(extraSeed));
-        } else if (Buffer.isBuffer(extraSeed)) {
-          seeds.push(extraSeed);
-        } else {
-          seeds.push(extraSeed.toBuffer());
-        }
-      }
-    }
-    let res = PublicKey.findProgramAddressSync(seeds, program);
-    return { publicKey: res[0], bump: res[1] };
+    return utils.findProgramAddress(label, program, extraSeeds);
   };
 
   ensureFails = async (promise, message = null) => {
-    try {
-      await promise;
-    } catch (err) {
-      return err;
-    }
-    throw new Error(message ? message : "Call should've failed");
+    return utils.ensureFails(promise, message);
   };
 
   // Convert a hex string to a byte array
   hexToBytes = (hex: string) => {
-    let bytes = [];
-    for (let c = 0; c < hex.length; c += 2)
-      bytes.push(parseInt(hex.substr(c, 2), 16));
-    return bytes;
+    return utils.hexToBytes(hex);
   };
 
   readEvents = async (txSignature: string, programs) => {
-    await this.program.provider.connection.confirmTransaction(txSignature);
-    const config = { commitment: "confirmed" } as const;
-    const txResult = await this.program.provider.connection.getTransaction(
+    return utils.readEvents(
+      this.program.provider.connection,
       txSignature,
-      config
+      programs
     );
-
-    let eventAuthorities = new Map();
-    for (const program of programs) {
-      eventAuthorities.set(
-        program.programId.toString(),
-        this.findProgramAddress(
-          "__event_authority",
-          null,
-          program.programId
-        ).publicKey.toString()
-      );
-    }
-
-    let events = [];
-    for (const ixBlock of txResult.meta.innerInstructions) {
-      for (const ix of ixBlock.instructions) {
-        for (const program of programs) {
-          const programStr = program.programId.toString();
-          if (
-            ix.accounts.length === 1 &&
-            txResult.transaction.message.accountKeys[
-              ix.programIdIndex
-            ].toString() === programStr &&
-            txResult.transaction.message.accountKeys[
-              ix.accounts[0]
-            ].toString() === eventAuthorities.get(programStr)
-          ) {
-            const ixData = anchor.utils.bytes.bs58.decode(ix.data);
-            const eventData = anchor.utils.bytes.base64.encode(ixData.slice(8));
-            let event = program.coder.events.decode(eventData);
-            events.push({
-              program: program.programId,
-              data: event.data,
-              name: event.name,
-            });
-          }
-        }
-      }
-    }
-
-    return events;
   };
 
   getEvent = (events, program: PublicKey, eventName: string) => {
-    for (const event of events) {
-      if (
-        event.name === eventName &&
-        program.toString() === event.program.toString()
-      ) {
-        return event.data;
-      }
-    }
-    throw new Error("Event " + eventName + " not found");
+    return utils.getEvent(events, program, eventName);
   };
 
   createBurnMessageBody = (
@@ -246,7 +169,7 @@ export class TestClient {
     depositor: PublicKey,
     amount: bigint
   ) => {
-    let burnMessageBuffer = this.createBurnMessageBody(
+    const burnMessageBuffer = this.createBurnMessageBody(
       burnVersion,
       burnToken,
       mintRecipient,
@@ -268,8 +191,8 @@ export class TestClient {
   attest = (message: Buffer, attesterPrivateKeys: Buffer[]) => {
     // Order the attesters by increasing pubkey.
     attesterPrivateKeys.sort((key1, key2) => {
-      let publicKey1 = ethutil.privateToAddress(key1);
-      let publicKey2 = ethutil.privateToAddress(key2);
+      const publicKey1 = ethutil.privateToAddress(key1);
+      const publicKey2 = ethutil.privateToAddress(key2);
       for (let i = 0; i < publicKey1.length; ++i) {
         if (publicKey1[i] < publicKey2[i]) {
           return -1;
@@ -281,7 +204,7 @@ export class TestClient {
       return 0;
     });
     const messageHash = ethutil.keccak256(message);
-    let attestation = Buffer.alloc(
+    const attestation = Buffer.alloc(
       SIGNATURE_LENGTH * attesterPrivateKeys.length
     );
     let writeOffset = 0;
@@ -310,7 +233,7 @@ export class TestClient {
     tokenController: PublicKey,
     messageBodyVersion: number
   ) => {
-    let programData = PublicKey.findProgramAddressSync(
+    const programData = PublicKey.findProgramAddressSync(
       [this.program.programId.toBuffer()],
       new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0];
@@ -334,7 +257,7 @@ export class TestClient {
   };
 
   transferOwnership = async (newOwner: PublicKey) => {
-    let currentOwner = (
+    const currentOwner = (
       await this.program.account.tokenMessenger.fetch(
         this.tokenMessenger.publicKey
       )
@@ -366,7 +289,7 @@ export class TestClient {
     domain: number,
     tokenMessenger: PublicKey
   ) => {
-    let remoteTokenMessenger = this.findProgramAddress(
+    const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
       [domain.toString()]
     ).publicKey;
@@ -383,7 +306,7 @@ export class TestClient {
   };
 
   removeRemoteTokenMessenger = async (domain: number) => {
-    let remoteTokenMessenger = this.findProgramAddress(
+    const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
       [domain.toString()]
     ).publicKey;
@@ -487,7 +410,7 @@ export class TestClient {
   };
 
   linkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
-    let tokenPair = this.findProgramAddress("token_pair", [
+    const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
       remoteToken,
     ]);
@@ -509,7 +432,7 @@ export class TestClient {
   };
 
   unlinkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
-    let tokenPair = this.findProgramAddress("token_pair", [
+    const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
       remoteToken,
     ]);
@@ -531,7 +454,7 @@ export class TestClient {
     mintRecipient: PublicKey,
     messageSentEventAccountKeypair: Keypair
   ) => {
-    let remoteTokenMessenger = this.findProgramAddress(
+    const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
       [destinationDomain.toString()]
     ).publicKey;
@@ -570,7 +493,7 @@ export class TestClient {
     destinationCaller: PublicKey,
     messageSentEventAccountKeypair: Keypair
   ) => {
-    let remoteTokenMessenger = this.findProgramAddress(
+    const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
       [destinationDomain.toString()]
     ).publicKey;
@@ -672,7 +595,7 @@ export class TestClient {
     message: number[],
     attestation: number[]
   ) => {
-    let maxNonces = 6400;
+    const maxNonces = 6400;
     const firstNonce =
       ((nonce - BigInt(1)) / BigInt(maxNonces)) * BigInt(maxNonces) + BigInt(1);
     const usedNonces = this.findProgramAddress(
@@ -681,18 +604,18 @@ export class TestClient {
       this.messageTransmitterProgram.programId
     ).publicKey;
 
-    let authorityPda = this.findProgramAddress(
+    const authorityPda = this.findProgramAddress(
       "message_transmitter_authority",
       [this.program.programId],
       this.messageTransmitterProgram.programId
     ).publicKey;
 
-    let tokenPair = this.findProgramAddress("token_pair", [
+    const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
       remoteToken,
     ]).publicKey;
 
-    let remoteTokenMessenger = this.findProgramAddress(
+    const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
       [remoteDomain.toString()]
     ).publicKey;

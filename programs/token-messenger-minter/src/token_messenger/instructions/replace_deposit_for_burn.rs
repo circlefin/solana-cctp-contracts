@@ -67,10 +67,14 @@ pub fn replace_deposit_for_burn(
     let message_transmitter = ctx.accounts.message_transmitter.as_ref();
     let token_messenger = ctx.accounts.token_messenger.as_ref();
 
+    // validate original_message bytes and initialize the Message
     let message = Message::new(message_transmitter.version, &params.original_message)?;
+
+    // extract BurnMessage from the Message body
     let burn_message =
         BurnMessage::new(token_messenger.message_body_version, message.message_body())?;
 
+    // validate original_message_sender
     let original_message_sender = burn_message.message_sender()?;
     require_keys_eq!(
         original_message_sender,
@@ -84,6 +88,7 @@ pub fn replace_deposit_for_burn(
         TokenMessengerError::InvalidMintRecipient
     );
 
+    // format new BurnMessage
     let burn_token = burn_message.burn_token()?;
     let amount = burn_message.amount()?;
 
@@ -97,6 +102,8 @@ pub fn replace_deposit_for_burn(
 
     // CPI into Message Transmitter
     let cpi_program = ctx.accounts.message_transmitter_program.to_account_info();
+
+    // prepare context for the CPI call
     let cpi_accounts = ReplaceMessageContext {
         event_rent_payer: ctx.accounts.event_rent_payer.to_account_info(),
         sender_authority_pda: ctx.accounts.sender_authority_pda.to_account_info(),
@@ -108,20 +115,25 @@ pub fn replace_deposit_for_burn(
             .to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
     };
+
     let authority_seeds: &[&[&[u8]]] = &[&[
         b"sender_authority",
         &[ctx.accounts.token_messenger.authority_bump],
     ]];
+
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, authority_seeds);
 
+    // call ReplaceMessage on MessageTransmitter and get new nonce
     let cpi_params = ReplaceMessageParams {
         original_message: params.original_message.clone(),
         original_attestation: params.original_attestation.clone(),
         new_message_body,
         new_destination_caller: params.new_destination_caller,
     };
+
     let nonce = message_transmitter::cpi::replace_message(cpi_ctx, cpi_params)?.get();
 
+    // emit DepositForBurn event
     emit_cpi!(DepositForBurn {
         nonce,
         burn_token,

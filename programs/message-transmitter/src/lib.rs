@@ -15,7 +15,7 @@ use {anchor_lang::prelude::*, instructions::*};
 solana_security_txt::security_txt! {
     name: "Message Transmitter for CCTP",
     project_url: "https://github.com/circlefin/solana-cctp-contracts",
-    contacts: "email:defi@solana.com",
+    contacts: "",
     policy: "",
     preferred_languages: "en",
     auditors: ""
