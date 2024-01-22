@@ -328,6 +328,8 @@ describe("token_messenger_minter", () => {
   });
 
   it("depositForBurn", async () => {
+    expect(await tc.isNonceUsed(BigInt(1), remoteDomain)).to.be.false;
+
     // MessageSent event data is stored in a stand-alone account.
     // A random Keypair needs to be provided so the account can be initialized by the contract.
     // After the transaction is executed, the keypair is no longer needed and can be tossed away.
@@ -377,6 +379,8 @@ describe("token_messenger_minter", () => {
       JSON.stringify(tc.messageTransmitterProgram.programId)
     );
     expect(accountInfo.data.length).to.equal(292);
+
+    expect(await tc.isNonceUsed(BigInt(1), remoteDomain)).to.be.false;
   });
 
   it("depositForBurnWithCaller", async () => {
@@ -561,6 +565,7 @@ describe("token_messenger_minter", () => {
     await tc.disableAttester(attester2);
 
     // deposit for burn
+    expect(await tc.isNonceUsed(BigInt(3), remoteDomain)).to.be.false;
     messageNonce = BigInt(3);
     const messageAmount = 20;
     const messageSentEventAccountKeypair = Keypair.generate();
@@ -716,6 +721,9 @@ describe("token_messenger_minter", () => {
     expect(JSON.stringify(localTokenState)).to.equal(
       JSON.stringify(localTokenExpected)
     );
+
+    // check if nonce flagged as used
+    expect(await tc.isNonceUsed(BigInt(3), remoteDomain)).to.be.true;
 
     // reclaim rent SOL
     const initialBalance = await tc.provider.connection.getBalance(

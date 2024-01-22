@@ -3,7 +3,9 @@
 pub mod accept_ownership;
 pub mod disable_attester;
 pub mod enable_attester;
+pub mod get_nonce_pda;
 pub mod initialize;
+pub mod is_nonce_used;
 pub mod pause;
 pub mod receive_message;
 pub mod reclaim_event_account;
@@ -18,8 +20,9 @@ pub mod update_attester_manager;
 pub mod update_pauser;
 
 pub use {
-    accept_ownership::*, disable_attester::*, enable_attester::*, initialize::*, pause::*,
-    receive_message::*, reclaim_event_account::*, replace_message::*, send_message::*,
-    send_message_with_caller::*, set_max_message_body_size::*, set_signature_threshold::*,
-    transfer_ownership::*, unpause::*, update_attester_manager::*, update_pauser::*,
+    accept_ownership::*, disable_attester::*, enable_attester::*, get_nonce_pda::*, initialize::*,
+    is_nonce_used::*, pause::*, receive_message::*, reclaim_event_account::*, replace_message::*,
+    send_message::*, send_message_with_caller::*, set_max_message_body_size::*,
+    set_signature_threshold::*, transfer_ownership::*, unpause::*, update_attester_manager::*,
+    update_pauser::*,
 };

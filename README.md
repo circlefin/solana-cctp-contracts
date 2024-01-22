@@ -197,6 +197,23 @@ Deletes the event account and reclaims rent SOL to the original rent payer. This
 | ----------- | :------: | -------------------------- |
 | attestation | Vec\<u8> | Attestation of the message |
 
+`getNoncePDA`
+
+View-only helper instruction to look-up `usedNonces` account for `receiveMessage` and `isNonceUsed` instructions.
+
+| Parameter    | Type | Description       |
+| ------------ | :--: | ----------------- |
+| nonce        | u64  | Message nonce     |
+| sourceDomain | u32  | Domain identifier |
+
+`isNonceUsed`
+
+View-only helper instruction that returns true if the nonce is already used, i.e. the message is received on the destination chain.
+
+| Parameter | Type | Description   |
+| --------- | :--: | ------------- |
+| nonce     | u64  | Message nonce |
+
 ### **State**
 
 ---

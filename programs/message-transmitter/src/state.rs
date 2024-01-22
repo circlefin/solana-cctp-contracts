@@ -195,15 +195,7 @@ impl UsedNonces {
 
     /// Marks the nonce as used
     pub fn use_nonce(&mut self, nonce: u64) -> Result<()> {
-        require!(
-            nonce >= self.first_nonce
-                && nonce < utils::checked_add(self.first_nonce, Self::MAX_NONCES as u64)?,
-            MessageTransmitterError::InvalidNonce
-        );
-
-        let position = utils::checked_sub(nonce, self.first_nonce)? as usize;
-        let entry = utils::checked_div(position, 64)?;
-        let bit = 1 << (position % 64);
+        let (entry, bit) = self.get_entry_bit(nonce)?;
 
         require!(
             self.used_nonces[entry] & bit == 0,
@@ -213,5 +205,26 @@ impl UsedNonces {
         self.used_nonces[entry] |= bit;
 
         Ok(())
+    }
+
+    /// Checks if nonce is used
+    pub fn is_nonce_used(&self, nonce: u64) -> Result<bool> {
+        let (entry, bit) = self.get_entry_bit(nonce)?;
+
+        Ok(self.used_nonces[entry] & bit != 0)
+    }
+
+    fn get_entry_bit(&self, nonce: u64) -> Result<(usize, u64)> {
+        require!(
+            nonce >= self.first_nonce
+                && nonce < utils::checked_add(self.first_nonce, Self::MAX_NONCES as u64)?,
+            MessageTransmitterError::InvalidNonce
+        );
+
+        let position = utils::checked_sub(nonce, self.first_nonce)? as usize;
+        let entry = utils::checked_div(position, 64)?;
+        let bit = 1 << (position as u64 % 64);
+
+        Ok((entry, bit))
     }
 }

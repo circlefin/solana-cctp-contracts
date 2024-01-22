@@ -595,14 +595,7 @@ export class TestClient {
     message: number[],
     attestation: number[]
   ) => {
-    const maxNonces = 6400;
-    const firstNonce =
-      ((nonce - BigInt(1)) / BigInt(maxNonces)) * BigInt(maxNonces) + BigInt(1);
-    const usedNonces = this.findProgramAddress(
-      "used_nonces",
-      [remoteDomain.toString(), firstNonce.toString()],
-      this.messageTransmitterProgram.programId
-    ).publicKey;
+    const usedNonces = await this.getNoncePDA(nonce, remoteDomain);
 
     const authorityPda = this.findProgramAddress(
       "message_transmitter_authority",
@@ -705,5 +698,30 @@ export class TestClient {
       })
       .signers([payee])
       .rpc();
+  };
+
+  getNoncePDA = async (nonce: bigint, sourceDomain: number) => {
+    return await this.messageTransmitterProgram.methods
+      .getNoncePda({
+        nonce: new BN(nonce),
+        sourceDomain,
+      })
+      .accounts({
+        messageTransmitter: this.messageTransmitter.publicKey,
+      })
+      .view();
+  };
+
+  isNonceUsed = async (nonce: bigint, sourceDomain: number) => {
+    const usedNonces = await this.getNoncePDA(nonce, sourceDomain);
+
+    return await this.messageTransmitterProgram.methods
+      .isNonceUsed({
+        nonce: new BN(nonce),
+      })
+      .accounts({
+        usedNonces,
+      })
+      .view();
   };
 }

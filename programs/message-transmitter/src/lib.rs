@@ -129,4 +129,18 @@ pub mod message_transmitter {
     ) -> Result<()> {
         instructions::reclaim_event_account(ctx, &params)
     }
+
+    pub fn get_nonce_pda(
+        ctx: Context<GetNoncePDAContext>,
+        params: GetNoncePDAParams,
+    ) -> Result<Pubkey> {
+        instructions::get_nonce_pda(ctx, &params)
+    }
+
+    pub fn is_nonce_used(
+        ctx: Context<IsNonceUsedContext>,
+        params: IsNonceUsedParams,
+    ) -> Result<bool> {
+        instructions::is_nonce_used(ctx, &params)
+    }
 }
