@@ -1,0 +1,23 @@
+## v1.4.1
+Use `String` Instead `&str` in `serde`
+
+## v1.4.0
+Bump `serde`
+Add more documents
+Add more tests
+Rename `hexd2num` to `de_hex2num`, `hexd2bytes` to `de_hex2bytes`
+
+## v1.3.3
+Allow explicit generic argument
+
+## v1.3.2
+Add `dyn_into`
+
+## v1.3.0
+Add `hex2array`, `hex_try_into` and `hex_into_unchecked`
+Support `serde`
+
+## v1.2.0
+Deprecated macro `hex2array_unchecked`
+Introduce function `hex2array_unchecked`
+Require at least rust 1.51.0
