@@ -20,4 +20,6 @@ pub enum TokenMinterError {
     InvalidTokenController,
     #[msg("Burn amount exceeded")]
     BurnAmountExceeded,
+    #[msg("Invalid amount")]
+    InvalidAmount,
 }

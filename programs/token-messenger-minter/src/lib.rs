@@ -142,4 +142,11 @@ pub mod token_messenger_minter {
     ) -> Result<()> {
         token_minter::instructions::unlink_token_pair(ctx, &params)
     }
+
+    pub fn burn_token_custody(
+        ctx: Context<BurnTokenCustodyContext>,
+        params: BurnTokenCustodyParams,
+    ) -> Result<()> {
+        token_minter::instructions::burn_token_custody(ctx, &params)
+    }
 }

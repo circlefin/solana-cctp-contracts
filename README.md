@@ -605,6 +605,14 @@ Resume TokenMinter.
 | --------- | :--: | ----------- |
 | None      |      |             |
 
+`burnTokenCustody`
+
+Burn tokens in the custody. If the specified amount is greater than the current balance, then the entire balance is burned, i.e., no error is returned in such case.
+
+| Parameter | Type | Description              |
+| --------- | :--: | ------------------------ |
+| amount    | u64  | Amount of tokens to burn |
+
 ### **State**
 
 ---

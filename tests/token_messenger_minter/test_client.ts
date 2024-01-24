@@ -136,6 +136,13 @@ export class TestClient {
     return utils.getEvent(events, program, eventName);
   };
 
+  getBalance = async (pubkey: PublicKey) => {
+    return spl
+      .getAccount(this.provider.connection, pubkey)
+      .then((account) => Number(account.amount))
+      .catch(() => 0);
+  };
+
   createBurnMessageBody = (
     burnVersion: number,
     burnToken: PublicKey,
@@ -723,5 +730,20 @@ export class TestClient {
         usedNonces,
       })
       .view();
+  };
+
+  burnTokenCustody = async (amount: BN) => {
+    return await this.program.methods
+      .burnTokenCustody({ amount })
+      .accounts({
+        tokenController: this.tokenController.publicKey,
+        tokenMinter: this.tokenMinter.publicKey,
+        localToken: this.localToken.publicKey,
+        custodyTokenAccount: this.custodyTokenAccount.publicKey,
+        custodyTokenMint: this.localTokenMint.publicKey,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+      })
+      .signers([this.tokenController])
+      .rpc();
   };
 }

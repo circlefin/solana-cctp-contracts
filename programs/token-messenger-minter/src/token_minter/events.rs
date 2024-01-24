@@ -49,3 +49,9 @@ pub struct Pause {}
 
 #[event]
 pub struct Unpause {}
+
+#[event]
+pub struct TokenCustodyBurned {
+    pub custody_token_account: Pubkey,
+    pub amount: u64,
+}

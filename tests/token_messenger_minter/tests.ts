@@ -753,4 +753,37 @@ describe("token_messenger_minter", () => {
       await tc.provider.connection.getBalance(tc.user.publicKey)
     ).to.greaterThan(initialBalance);
   });
+
+  it("burnTokenCustody", async () => {
+    expect(await tc.getBalance(tc.custodyTokenAccount.publicKey)).to.be.equal(
+      0
+    );
+
+    // fund custody
+    await spl.mintToChecked(
+      tc.provider.connection,
+      tc.owner,
+      tc.localTokenMint.publicKey,
+      tc.custodyTokenAccount.publicKey,
+      tc.owner,
+      1000,
+      9
+    );
+
+    const initialBalance = await tc.getBalance(
+      tc.custodyTokenAccount.publicKey
+    );
+    expect(initialBalance).to.be.equal(1000);
+
+    await tc.burnTokenCustody(new BN(initialBalance / 2));
+
+    let newBalance = await tc.getBalance(tc.custodyTokenAccount.publicKey);
+    expect(newBalance).to.be.equal(initialBalance - initialBalance / 2);
+
+    let u64Max = new BN(2).pow(new BN(64)).sub(new BN(1)); // u64::MAX
+    await tc.burnTokenCustody(u64Max);
+
+    newBalance = await tc.getBalance(tc.custodyTokenAccount.publicKey);
+    expect(newBalance).to.be.equal(0);
+  });
 });

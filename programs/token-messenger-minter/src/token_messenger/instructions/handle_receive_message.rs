@@ -70,14 +70,14 @@ pub struct HandleReceiveMessageContext<'info> {
     )]
     pub token_pair: Box<Account<'info, TokenPair>>,
 
-    ///CHECK: recipient's token account
+    // Recipient's token account
     #[account(
         mut,
         constraint = recipient_token_account.mint == local_token.mint
     )]
     pub recipient_token_account: Box<Account<'info, TokenAccount>>,
 
-    ///CHECK: custody token account (could be changed to token mint)
+    // Custody token account (could be changed to token mint)
     #[account(
         mut,
         constraint = custody_token_account.mint == local_token.mint,
@@ -89,7 +89,7 @@ pub struct HandleReceiveMessageContext<'info> {
     )]
     pub custody_token_account: Box<Account<'info, TokenAccount>>,
 
-    ///CHECK: Token program to be used by the Receiver
+    // Token program to be used by the Receiver
     pub token_program: Program<'info, Token>,
 }
 
