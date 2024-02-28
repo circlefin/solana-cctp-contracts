@@ -10,10 +10,10 @@ use {anchor_lang::prelude::*, token_messenger::*, token_minter::*};
 solana_security_txt::security_txt! {
     name: "Token Messenger and Minter for CCTP",
     project_url: "https://github.com/circlefin/solana-cctp-contracts",
-    contacts: "",
+    contacts: "security@circle.com",
     policy: "",
     preferred_languages: "en",
-    auditors: ""
+    auditors: "Halborn"
 }
 
 declare_id!("CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3");

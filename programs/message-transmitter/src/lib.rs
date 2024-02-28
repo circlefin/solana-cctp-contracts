@@ -15,10 +15,10 @@ use {anchor_lang::prelude::*, instructions::*};
 solana_security_txt::security_txt! {
     name: "Message Transmitter for CCTP",
     project_url: "https://github.com/circlefin/solana-cctp-contracts",
-    contacts: "",
+    contacts: "security@circle.com",
     policy: "",
     preferred_languages: "en",
-    auditors: ""
+    auditors: "Halborn"
 }
 
 declare_id!("CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd");

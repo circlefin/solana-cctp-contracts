@@ -2,12 +2,12 @@
 name = "token-messenger-minter"
 version = "0.1.0"
 description = "Token Messenger and Minter for Cross-Chain Transfer Protocol"
-authors = ["Solana Maintainers <maintainers@solana.foundation>"]
+authors = []
 repository = "https://github.com/circlefin/solana-cctp-contracts"
-categories = ["finance"]
+categories = []
 keywords = ["solana", "cctp", "bridge", "usdc", "circle"]
 license = "Apache-2.0"
-homepage = "https://solana.com/"
+homepage = "https://www.circle.com/"
 edition = "2021"
 
 [lib]
