@@ -5,17 +5,19 @@
 - [Introduction](#introduction)
 - [Deployments](#deployments)
 - [Contract Design](#contract-design)
-- [Protocol Module](#protocol-module)
 - [TokenMessenger Module](#tokenmessenger-module)
 - [MessageTransmitter Module](#messagetransmitter-module)
 - [TokenMinter Module](#tokenminter-module)
 - [Permissions](#permissions)
-- [Audits](#audits)
 - [Deployment guide](#deployment-guide)
 
 ## Introduction
 
-The Cross-Chain Transfer Protocol (CCTP) is an on-chain utility that facilitates a safer and more efficient transfer of tokens across different blockchains. Unlike traditional "lock-and-mint" bridges that pose security risks and provide a poor user experience, CCTP uses smart contracts to burn and mint native tokens, maintaining liquidity and reducing fragmentation. It opens up opportunities for developers to create innovative cross-chain applications that integrate various functionalities such as trading, lending, payments, NFTs, and gaming, making the process user-friendly. In essence, CCTP streamlines cross-chain transactions and paves the way for a more interconnected Web3.
+[Cross-Chain Transfer Protocol (CCTP)](https://circle.com/cctp) is a permissionless on-chain utility that facilitates USDC transfers securely between blockchains networks via native burning and minting. Circle created it to improve capital efficiency and minimize trust requirements when using USDC across blockchain networks. CCTP enables developers to build multi-chain applications that provide secure, 1:1 transfers of USDC across blockchains for their users.
+
+## Developer Documentation
+
+To learn more about how to integrate with CCTP, please see our developer documentation [here](https://developers.circle.com/stablecoins/docs/cctp-getting-started).
 
 ## Deployments
 
@@ -33,17 +35,15 @@ The Cross-Chain Transfer Protocol (CCTP) is an on-chain utility that facilitates
 
 Solana offers a different smart contract model to traditional EVM-based blockchains. In traditional EVM-based chains, contract code/logic and state are combined into a single contract deployed on-chain. With Solana, a smart contract is read-only or stateless and contains just program logic. This creates a logical separation of state (accounts) and contract logic (programs). This model allows for a single generic Solana program to operate across various accounts without requiring additional deployments. This is the crucial difference between Solana and EVM-based smart contracts.
 
-The Solana runtime allows programs to call each other via a mechanism called cross-program invocation. Calling between programs is achieved by one program invoking an instruction of the other. But unlike Ethereum, in order to invoke a CPI, Solana program must first receive a full list of accounts that the invoked program will use. It then needs to construct a new instruction serializing input data before executing the call. This increases the complexity of the contract and client and also increases compute units cost. Unless strictly necessary, it is beneficial to encapsulate the project's logic inside a single program.
-
 CCTP protocol on EVM chains consists of three contracts:
 
 - **MessageTransmitter**: Generic message passing. Sends all messages on the source chain, and receives all messages on the destination chain.
 - **TokenMessenger**: Entrypoint for cross-chain token transfer. Routes messages to burn a token on source chain, and mint it on destination chain.
 - **TokenMinter**: Responsible for minting and burning tokens. Contains chain-specific settings used by minters and burners.
 
-Because TokenMessengers and TokenMinter can be deployed permissionlessly by ecosystem teams to leverage CCTP transfers for their custom tokens, on Solana, the CCTP protocol implementation is split into two programs: MessageTransmitter and TokenMessengerMinter. Where TokenMessengerMinter encapsulates the functionality of both TokenMessenger and TokenMinter contracts. To ensure alignment with EVM contracts' logic and state and to facilitate future upgrades and maintenance, the code and state of Solana programs reflect the EVM counterparts as closely as possible.
+On Solana, the CCTP protocol implementation is split into two programs: MessageTransmitter and TokenMessengerMinter. Where TokenMessengerMinter encapsulates the functionality of both TokenMessenger and TokenMinter contracts. To ensure alignment with EVM contracts' logic and state and to facilitate future upgrades and maintenance, the code and state of Solana programs reflect the EVM counterparts as closely as possible.
 
-Solana CCTP programs are written in Rust and leverages Anchor framework that makes it easier and more efficient for developers to create, deploy, and manage smart contracts on the Solana blockchain. Along with the program, an IDL (Interface Description Language) can be generated and deployed on-chain making it much easier for developers to interact with the CCTP program. See [Deployment guide](#deployment-guide) for more details.
+Solana CCTP programs are written in Rust and leverage the Anchor framework that makes it easier and more efficient for developers to create, deploy, and manage smart contracts on the Solana blockchain. Along with the program, an IDL (Interface Description Language) can be generated and deployed on-chain making it much easier for developers to interact with the CCTP program. See [Deployment guide](#deployment-guide) for more details.
 
 Each CCTP program instruction emits one or more events upon execution. Depending on the purpose of instruction, events are emitted via Anchor's CPI events functionality or by creating new stand-alone accounts where such events are stored. Stand-alone account addresses are randomly generated on a client and passed to the program. The program initializes the account, writes the event, and sets itself as the owner. Replace instructions don't update previously created event accounts but create new ones. This is done to make it easier for the client to generate a replace instruction because it doesn't need to look up the original account address. At this time, only `MessageSent` events are emitted via stand-alone accounts.
 
@@ -525,7 +525,7 @@ Emitted when a remote TokenMessenger is removed.
 | domain         |  u32   | Domain of remote TokenMessenger  |
 | tokenMessenger | Pubkey | Address of remote TokenMessenger |
 
-## TokenMinter
+## TokenMinter Module
 
 ### **Instructions**
 
@@ -786,10 +786,6 @@ The following table shows the permissions for calling each instruction:
 | TokenMinter        | pause                      |                |   x    |                  |                  |       |                   |                               |                    |
 | TokenMinter        | unpause                    |                |   x    |                  |                  |       |                   |                               |                    |
 
-## Audits
-
-[TBD]
-
 ## Deployment guide
 
 ### Setup Environment
@@ -811,7 +807,7 @@ Rustfmt is used to format the code. It requires `nightly` features to be activat
 
 ### Build
 
-First, generate a new key for the program address with `solana-keygen new -o <PROG_ID_JSON>`. Then replace the existing program ID with the newly generated address in `Anchor.toml` and `programs/cctp/src/lib.rs`.
+First, generate new keys for the program addresses with `solana-keygen new -o <PROG_ID_JSON>`. Then, replace the existing program IDs with the newly generated addresses in `Anchor.toml`, `programs/message-transmitter/src/lib.rs`, and `programs/token-messenger-minter/src/lib.rs`.
 
 Also, ensure the path to your wallet in `Anchor.toml` is correct. Alternatively, when running Anchor deploy or test commands, you can specify your wallet with `--provider.wallet` argument. The wallet's pubkey will be set as an upgrade authority upon initial deployment of the program. It is strongly recommended to use multisig upgrade authority when deploying to the mainnet.
 
@@ -821,6 +817,12 @@ To build the program run `anchor build` command from the root `solana-cctp-contr
 cd solana-cctp-contracts
 anchor build
 ```
+
+#### Cargo Dependencies
+
+To ensure with certainty that packages are not changed unexpectedly as well as to enable reproducible,
+verifiable builds, all Cargo dependencies are vendored locally in the [vendor](/vendor/) directory and
+enabled via the [.cargo/config.toml](.cargo/config.toml) file.
 
 ### Test
 
@@ -844,10 +846,16 @@ By default, integration tests are executed on a local validator, so it won't cos
 To deploy the program to the devnet and upload the IDL use the following commands:
 
 ```sh
-anchor deploy --provider.cluster devnet --program-keypair <PROG_ID_JSON>
-anchor idl init --provider.cluster devnet --filepath ./target/idl/cctp.json <PROGRAM ID>
+anchor deploy --provider.cluster devnet --program-name message_transmitter --program-keypair <PROG_ID_JSON>
+anchor deploy --provider.cluster devnet --program-name token_messenger_minter --program-keypair <PROG_ID_JSON>
+anchor idl init --provider.cluster devnet --filepath ./target/idl/message_transmitter.json <PROGRAM ID>
+anchor idl init --provider.cluster devnet --filepath ./target/idl/token_messenger_minter.json <PROGRAM ID>
 ```
 
 ### Initialize
 
-Before the first use of the CCTP program it must be initialized with the [init](#protocol-module) instruction and one or more TokenMinters added with [addTokenMinter](#protocol-module) instruction.
+Before the first use of the CCTP programs they must be initialized with the [MessageTransmitter#initialize](#messagetransmitter-module) and [TokenMessenger#initialize](#tokenmessenger-module) instructions.
+
+---
+
+License: [LICENSE](./LICENSE)
