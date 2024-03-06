@@ -1,0 +1,17 @@
+{
+  "name": "solana-cctp-examples",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "depositForBurn": "tsx depositForBurn.ts",
+    "receiveMessage": "tsx receiveMessage.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/spl-token": "^0.4.1",
+    "@solana/web3.js": "^1.90.1",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.1",
+    "tsx": "^4.7.1"
+  }
+}
