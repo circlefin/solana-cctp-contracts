@@ -818,6 +818,12 @@ cd solana-cctp-contracts
 anchor build
 ```
 
+#### Cargo Dependencies
+
+To ensure with certainty that packages are not changed unexpectedly as well as to enable reproducible,
+verifiable builds, all Cargo dependencies are vendored locally in the [vendor](/vendor/) directory and
+enabled via the [.cargo/config.toml](.cargo/config.toml) file.
+
 ### Test
 
 Unit tests are executed with the `cargo test` command:
