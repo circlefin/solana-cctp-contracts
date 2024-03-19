@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Circle Internet Financial Limited All rights reserved.
+ * Copyright (c) 2024, Circle Internet Financial LTD All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
