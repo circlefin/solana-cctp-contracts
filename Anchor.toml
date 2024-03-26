@@ -10,6 +10,10 @@ token_messenger_minter = "CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3"
 message_transmitter = "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd"
 token_messenger_minter = "CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3"
 
+[programs.mainnet]
+message_transmitter = "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd"
+token_messenger_minter = "CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3"
+
 [registry]
 url = "https://api.apr.dev"
 

@@ -28,8 +28,23 @@ To learn more about how to integrate with CCTP, please see our developer documen
 
 | Mainnet              |       |
 | -------------------- | ----- |
-| MessageTransmitter   | [TBD] |
-| TokenMessengerMinter | [TBD] |
+| MessageTransmitter   | CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd |
+| TokenMessengerMinter | CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3 |
+
+### Program Verification
+
+Mainnet on-chain progams can be verified with the following steps:
+
+```sh
+# Checkout deployed commit
+git checkout 7bec2828bb442e7e22753cedc41b295b681980f2
+# Build a verifiable build 
+anchor build --verifiable
+# Verify MessageTransmitter
+anchor verify --program-name message_transmitter --provider.cluster mainnet --skip-build CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd
+# Verify TokenMessengerMinter
+anchor verify --program-name token_messenger_minter --provider.cluster mainnet --skip-build CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3
+```
 
 ## Contract Design
 
