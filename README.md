@@ -37,7 +37,7 @@ Mainnet on-chain progams can be verified with the following steps:
 
 ```sh
 # Checkout deployed commit
-git checkout 7bec2828bb442e7e22753cedc41b295b681980f2
+git checkout 4e8f1d7bd4c95c3e1f4cb8ba2118897b7163c7c4
 # Build a verifiable build 
 anchor build --verifiable
 # Verify MessageTransmitter
