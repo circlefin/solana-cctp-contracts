@@ -64,6 +64,7 @@ export async function readEvents(
   txSignature: string,
   programs
 ) {
+  await new Promise(resolve => setTimeout(resolve, 1000));
   await connection.confirmTransaction(txSignature);
   const config = { commitment: "confirmed" } as const;
   const txResult = await connection.getTransaction(txSignature, config);
