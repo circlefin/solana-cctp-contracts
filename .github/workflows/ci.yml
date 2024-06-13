@@ -10,9 +10,27 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
       - name: Install dependencies
-        uses: npm install
+        run: |
+          npm install
+          # Install rust
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source /home/runner/.profile
+          source "$HOME/.cargo/env"
+          rustup -V 
+          # Install solana-cli
+          sh -c "$(curl -sSfL https://release.solana.com/v1.16.3/install)"
+          echo "/home/runner/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          source /home/runner/.profile
+          solana --version
+          # Install anchor-cli
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install v0.28.0
+          anchor --version
+          # create a local keypair for tests
+          touch ~/.config/solana/id.json
+          solana-keygen new -o ~/.config/solana/id.json --force --silent --no-bip39-passphrase
       - name: Run tests
-        uses: npx anchor test -- --features test
+        run: anchor test -- --features test
 
   scan:
     needs: ci

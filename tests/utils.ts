@@ -122,3 +122,28 @@ export function getEvent(events, program: PublicKey, eventName: string) {
   }
   throw new Error("Event " + eventName + " not found");
 }
+
+export function generateUsedNoncesCollisions(numCollisions = 500) {
+  const set = new Set();
+  const map = {};
+  const collisions = [];
+
+  // source domains 0-50
+  for (let i = 0; i < 50; i++) {
+    // nonces 1-200M. Increment by 6400 since only the first nonce is in the seed
+    for (let j = 1; j < 20000000; j+=6400) {
+      if (set.has(`${i}${j}`)) {
+        // Collision
+        collisions.push({nonce1: map[`${i}${j}`].j, domain1: map[`${i}${j}`].i, nonce2: j, domain2: i});
+      } else {
+        // No collision, add to the set and map
+        set.add(`${i}${j}`);
+        map[`${i}${j}`] = {i, j}
+      }
+      if (collisions.length >= numCollisions) {
+        return collisions;
+      }
+    }
+  } 
+  return collisions;
+}
