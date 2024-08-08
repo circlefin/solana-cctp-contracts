@@ -25,6 +25,7 @@ import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 import { MessageTransmitter } from './target/types/message_transmitter';
 import { TokenMessengerMinter } from './target/types/token_messenger_minter';
+import { SolanaMessenger } from './target/types/solana_messenger';
 
 export const IRIS_API_URL = process.env.IRIS_API_URL ?? "https://iris-api-sandbox.circle.com";
 export const SOLANA_SRC_DOMAIN_ID = 5;
@@ -48,6 +49,13 @@ export const getPrograms = (provider: anchor.AnchorProvider) => {
   const messageTransmitterProgram = anchor.workspace.MessageTransmitter as anchor.Program<MessageTransmitter>;
   const tokenMessengerMinterProgram = anchor.workspace.TokenMessengerMinter as anchor.Program<TokenMessengerMinter>;
   return { messageTransmitterProgram, tokenMessengerMinterProgram };
+}
+
+export const getRawMsgPrograms = (provider: anchor.AnchorProvider) => {
+  // Initialize contracts
+  const messageTransmitterProgram = anchor.workspace.MessageTransmitter as anchor.Program<MessageTransmitter>;
+  const solanaMessengerProgram = anchor.workspace.SolanaMessenger as anchor.Program<SolanaMessenger>;
+  return { messageTransmitterProgram, solanaMessengerProgram };
 }
 
 export const getDepositForBurnPdas = (
@@ -124,6 +132,35 @@ export const getReceiveMessagePdas = async (
         tokenMessengerEventAuthority,
         usedNonces
     }
+}
+
+export const getReceiveRawMessagePdas = async (
+  {messageTransmitterProgram, solanaMessengerProgram}: ReturnType<typeof getRawMsgPrograms>,
+  remoteDomain: string,
+  nonce: string
+) => {
+  const messageTransmitterAccount = findProgramAddress("message_transmitter", messageTransmitterProgram.programId);
+  const authorityPda = findProgramAddress(
+      "message_transmitter_authority",
+      messageTransmitterProgram.programId,
+      [solanaMessengerProgram.programId]
+  ).publicKey;
+
+  const usedNonces = await messageTransmitterProgram.methods
+  .getNoncePda({
+    nonce: new anchor.BN(nonce), 
+    sourceDomain: Number(remoteDomain)
+  })
+  .accounts({
+    messageTransmitter: messageTransmitterAccount.publicKey
+  })
+  .view();
+
+  return {
+      messageTransmitterAccount,
+      authorityPda,
+      usedNonces
+  }
 }
 
 export const solanaAddressToHex = (solanaAddress: string): string =>

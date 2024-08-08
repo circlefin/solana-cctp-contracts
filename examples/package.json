@@ -4,7 +4,8 @@
   "description": "",
   "scripts": {
     "depositForBurn": "tsx depositForBurn.ts",
-    "receiveMessage": "tsx receiveMessage.ts"
+    "receiveMessage": "tsx receiveMessage.ts",
+    "receiveRawMessage": "tsx receiveRawMessage.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0",

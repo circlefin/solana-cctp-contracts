@@ -1,0 +1,53 @@
+{
+  "version": "0.1.0",
+  "name": "solana_messenger",
+  "instructions": [
+    {
+      "name": "handle_receive_message",
+      "accounts": [
+        {
+          "name": "authority_pda",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "HandleReceiveMessageParams"
+          }
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "HandleReceiveMessageParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "remote_domain",
+            "type": "u32"
+          },
+          {
+            "name": "sender",
+            "type": "publicKey"
+          },
+          {
+            "name": "message_body",
+            "type": "bytes"
+          },
+          {
+            "name": "authority_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "address": "mesmzuHztrYrrGFSz3nm7uQzThz3t3JNdBvioj1YCT9"
+  }
+}
