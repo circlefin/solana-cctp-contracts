@@ -16,6 +16,7 @@ jobs:
         uses: sec3dev/pro-action@v1
         with:
           sec3-token: ${{ secrets.SEC3_TOKEN }}
+          path: programs/token-messenger-minter
       - name: Upload Sarif Report
         uses: github/codeql-action/upload-sarif@v2
         with:
