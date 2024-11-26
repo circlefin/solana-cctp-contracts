@@ -1,0 +1,36 @@
+name: Cargo Tarpaulin
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run tests with coverage
+        run: cargo tarpaulin --out Html || true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v2
+        with:
+          name: tarpaulin-coverage
+          path: target/cov/html
+          
+      - name: Comment coverage results
+        run: |
+          echo "Coverage report available as an artifact."
+          echo "You can download it from the [Artifacts section](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
