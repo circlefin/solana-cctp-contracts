@@ -28,7 +28,7 @@ use {anchor_lang::prelude::*, token_messenger::*, token_minter::*};
 solana_security_txt::security_txt! {
     name: "Token Messenger and Minter for CCTP",
     project_url: "https://github.com/circlefin/solana-cctp-contracts",
-    contacts: "link:https://hackerone.com/circle-bbp",
+    contacts: "link:https://hackerone.com/circle",
     policy: "https://github.com/circlefin/solana-cctp-contracts/blob/master/SECURITY.md"
 }
 
