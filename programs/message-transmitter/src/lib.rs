@@ -33,7 +33,7 @@ use {anchor_lang::prelude::*, instructions::*};
 solana_security_txt::security_txt! {
     name: "Message Transmitter for CCTP",
     project_url: "https://github.com/circlefin/solana-cctp-contracts",
-    contacts: "link:https://hackerone.com/circle",
+    contacts: "link:https://hackerone.com/circle-bbp",
     policy: "https://github.com/circlefin/solana-cctp-contracts/blob/master/SECURITY.md"
 }
 
