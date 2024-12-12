@@ -29,6 +29,7 @@ pub mod utils;
 
 use {anchor_lang::prelude::*, instructions::*};
 
+#[cfg(not(feature = "cpi"))]
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
     name: "Message Transmitter for CCTP",
