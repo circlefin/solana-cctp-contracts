@@ -46,6 +46,7 @@ pub fn get_nonce_pda(
         &[
             b"used_nonces",
             params.source_domain.to_string().as_bytes(),
+            UsedNonces::used_nonces_seed_delimiter(params.source_domain),
             UsedNonces::first_nonce(params.nonce)?
                 .to_string()
                 .as_bytes(),
