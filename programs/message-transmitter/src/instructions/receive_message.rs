@@ -62,6 +62,7 @@ pub struct ReceiveMessageContext<'info> {
         seeds = [
             b"used_nonces", 
             Message::new(message_transmitter.version, &params.message)?.source_domain()?.to_string().as_bytes(),
+            UsedNonces::used_nonces_seed_delimiter(Message::new(message_transmitter.version, &params.message)?.source_domain()?),
             UsedNonces::first_nonce(Message::new(message_transmitter.version, &params.message)?.nonce()?)?.to_string().as_bytes()
         ],
         bump
