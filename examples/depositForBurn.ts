@@ -22,11 +22,9 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
 import { getBytes } from 'ethers';
 
-import { SOLANA_USDC_ADDRESS, evmAddressToBytes32, getAnchorConnection, getDepositForBurnPdas, getMessages, getPrograms, solanaAddressToHex, evmAddressToSolana } from './utils';
+import { SOLANA_USDC_ADDRESS, evmAddressToBytes32, getAnchorConnection, getDepositForBurnPdas, getMessages, getPrograms, solanaAddressToHex } from './utils';
 
 const main = async () => {
-    console.log(solanaAddressToHex("9JAtDxoKf4J7QFqswCCNs8qUPP1ykmRMnkA1PB4Z4vvg"))
-    return;
     const provider = getAnchorConnection();
 
     const { messageTransmitterProgram, tokenMessengerMinterProgram } = getPrograms(provider);
