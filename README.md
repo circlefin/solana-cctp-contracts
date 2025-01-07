@@ -37,9 +37,9 @@ Mainnet on-chain progams can be verified with the following steps:
 
 ```sh
 # Checkout deployed commit
-git checkout 4e8f1d7bd4c95c3e1f4cb8ba2118897b7163c7c4
+git checkout 8b115e4f9ea16f652f86b4034bd6142da018df5e
 # Build a verifiable build 
-anchor build --verifiable
+anchor build --verifiable --docker-image backpackapp/build:v0.28.0 
 # Verify MessageTransmitter
 anchor verify --program-name message_transmitter --provider.cluster mainnet --skip-build CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd
 # Verify TokenMessengerMinter
