@@ -25,6 +25,8 @@ pub mod token_minter;
 
 use {anchor_lang::prelude::*, token_messenger::*, token_minter::*};
 
+#[cfg(not(feature = "cpi"))]
+#[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
     name: "Token Messenger and Minter for CCTP",
     project_url: "https://github.com/circlefin/solana-cctp-contracts",
