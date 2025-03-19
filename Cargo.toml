@@ -2,7 +2,8 @@
 resolver = "2"
 
 members = [
-    "programs/*"
+    "programs/message-transmitter",
+    "programs/token-messenger-minter"
 ]
 
 [profile.release]
