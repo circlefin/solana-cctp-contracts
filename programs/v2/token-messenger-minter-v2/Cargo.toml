@@ -1,0 +1,27 @@
+[package]
+name = "token-messenger-minter-v2"
+version = "0.2.0"
+description = "Token Messenger and Minter for Cross-Chain Transfer Protocol V2"
+repository = "https://github.com/circlefin/solana-cctp-contracts"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "token_messenger_minter_v2"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+idl-build = ["anchor-spl/idl-build", "anchor-lang/idl-build"]
+default = []
+test = []
+
+[dependencies]
+anchor-lang = { version = "=0.31.0", features = ["event-cpi"] }
+anchor-spl = "=0.31.0"
+solana-security-txt = "=1.1.1"
+num-traits = "=0.2.19"
+message-transmitter-v2 = { path = "../message-transmitter-v2", features = ["no-entrypoint", "cpi"] }

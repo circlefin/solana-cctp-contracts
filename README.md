@@ -14,6 +14,33 @@
 
 To learn more about how to integrate with CCTP, please see our developer documentation [here](https://developers.circle.com/stablecoins/docs/cctp-getting-started).
 
+## run.sh Script Commands
+
+All commands check for installation of [rust](https://www.rust-lang.org/tools/install),
+[solana CLI](https://solana.com/docs/intro/installation), and
+[anchor CLI](https://www.anchor-lang.com/docs/installation#install-anchor-cli).
+
+To speed calls up and skip the setup checks add the `--skip-setup` flag to any command.
+
+```bash
+# Build V1 programs
+./run.sh build_v1
+# Build V2 programs
+./run.sh build_v2
+# Clean V1 programs
+./run.sh clean_v1
+# Clean V2 programs
+./run.sh clean_v2
+# Run Unit tests on V1 programs
+./run.sh test_v1
+# Run Unit tests on V2 programs
+./run.sh test_v2
+# Run ITs on V1 programs
+./run.sh its_v1
+# Run ITs on V2 programs
+./run.sh its_v2
+```
+
 ## Deployments
 
 | Devnet               |                                              |
@@ -66,11 +93,11 @@ First, generate new keys for the program addresses with `solana-keygen new -o <P
 
 Also, ensure the path to your wallet in `Anchor.toml` is correct. Alternatively, when running Anchor deploy or test commands, you can specify your wallet with `--provider.wallet` argument. The wallet's pubkey will be set as an upgrade authority upon initial deployment of the program. It is strongly recommended to use multisig upgrade authority when deploying to the mainnet.
 
-To build the program run `anchor build` command from the root `solana-cctp-contracts` directory:
+To build the program run `./run.sh build_v1` command from the root `solana-cctp-contracts` directory:
 
 ```sh
 cd solana-cctp-contracts
-anchor build
+./run.sh build_v1
 ```
 
 #### Cargo Dependencies
@@ -81,17 +108,16 @@ enabled via the [.cargo/config.toml](.cargo/config.toml) file.
 
 ### Test
 
-Unit tests are executed with the `cargo test` command:
+V1 unit tests are executed with the run script:
 
 ```sh
-cargo test -- --nocapture
+./run.sh test_v1
 ```
 
 Integration tests can be started as follows:
 
 ```sh
-npm install
-anchor test -- --features test
+./run.sh its_v1
 ```
 
 By default, integration tests are executed on a local validator, so it won't cost you any SOL.
