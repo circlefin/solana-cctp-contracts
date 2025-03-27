@@ -49,11 +49,11 @@ pub struct InitializeContext<'info> {
     )]
     pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
 
-    /// CHECK: ProgramData account, not used for anchor tests
-    #[account()]
-    pub message_transmitter_program_data: AccountInfo<'info /*, ProgramData*/>,
+    // Ensure only upgrade_authority can call initialize
+    #[account(constraint = message_transmitter_program_data.upgrade_authority_address == Some(upgrade_authority.key()))]
+    pub message_transmitter_program_data: Account<'info, ProgramData>,
 
-    pub message_transmitter_program: Program<'info, program::MessageTransmitter>,
+    pub message_transmitter_program: Program<'info, program::MessageTransmitterV2>,
 
     pub system_program: Program<'info, System>,
 }
@@ -69,14 +69,6 @@ pub struct InitializeParams {
 
 // Instruction handler
 pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) -> Result<()> {
-    utils::validate_upgrade_authority::<program::MessageTransmitter>(
-        ctx.accounts.upgrade_authority.key(),
-        &ctx.accounts
-            .message_transmitter_program_data
-            .to_account_info(),
-        &ctx.accounts.message_transmitter_program.to_account_info(),
-    )?;
-
     // record message_transmitter state
     let authority = ctx.accounts.upgrade_authority.key();
     let message_transmitter = ctx.accounts.message_transmitter.as_mut();

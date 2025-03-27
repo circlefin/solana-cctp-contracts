@@ -18,6 +18,7 @@
 
 //! TokenMessengerMinterV2 program entrypoint
 
+#![allow(unexpected_cfgs)]
 
 pub mod token_messenger_v2;
 pub mod token_minter_v2;

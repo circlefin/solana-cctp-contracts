@@ -19,7 +19,7 @@
  //! BurnTokenCustody instruction handler
 
 use {
-    crate::token_minter::{
+    crate::token_minter_v2::{
         error::TokenMinterError,
         events::TokenCustodyBurned,
         state::{LocalToken, TokenMinter},

@@ -19,14 +19,14 @@
  //! AddLocalToken instruction handler
 
 use {
-    crate::token_minter::{
+    crate::token_minter_v2::{
         error::TokenMinterError,
         events::LocalTokenAdded,
         state::{LocalToken, TokenMinter},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
-    message_transmitter::utils,
+    message_transmitter_v2::utils,
 };
 
 // Instruction accounts
@@ -90,14 +90,8 @@ pub fn add_local_token(
 
     local_token.custody = ctx.accounts.custody_token_account.key();
     local_token.mint = ctx.accounts.local_token_mint.key();
-    local_token.bump = *ctx
-        .bumps
-        .get("local_token")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    local_token.custody_bump = *ctx
-        .bumps
-        .get("custody_token_account")
-        .ok_or(ProgramError::InvalidSeeds)?;
+    local_token.bump = ctx.bumps.local_token;
+    local_token.custody_bump = ctx.bumps.custody_token_account;
 
     // validate state
     require!(

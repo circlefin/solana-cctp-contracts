@@ -19,7 +19,7 @@
  //! RemoveRemoteTokenMessenger instruction handler
 
 use {
-    crate::token_messenger::{
+    crate::token_messenger_v2::{
         error::TokenMessengerError,
         events::RemoteTokenMessengerRemoved,
         state::{RemoteTokenMessenger, TokenMessenger},

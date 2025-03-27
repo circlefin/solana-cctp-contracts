@@ -19,13 +19,13 @@
  //! AddRemoteTokenMessenger instruction handler
 
 use {
-    crate::token_messenger::{
+    crate::token_messenger_v2::{
         error::TokenMessengerError,
         events::RemoteTokenMessengerAdded,
         state::{RemoteTokenMessenger, TokenMessenger},
     },
     anchor_lang::prelude::*,
-    message_transmitter::utils,
+    message_transmitter_v2::utils,
 };
 
 // Instruction accounts

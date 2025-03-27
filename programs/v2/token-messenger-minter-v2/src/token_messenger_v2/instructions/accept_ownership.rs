@@ -19,7 +19,7 @@
  //! AcceptOwnership instruction handler
 
 use {
-    crate::token_messenger::{
+    crate::token_messenger_v2::{
         error::TokenMessengerError, events::OwnershipTransferred, state::TokenMessenger,
     },
     anchor_lang::prelude::*,

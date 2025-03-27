@@ -19,8 +19,8 @@
  //! BurnMessage
 
 use {
-    crate::token_messenger::error::TokenMessengerError, anchor_lang::prelude::*,
-    message_transmitter::utils, num_traits::FromBytes, std::fmt::Display,
+    crate::token_messenger_v2::error::TokenMessengerError, anchor_lang::prelude::*,
+    message_transmitter_v2::utils, num_traits::FromBytes, std::fmt::Display,
 };
 
 #[derive(Clone, Debug)]

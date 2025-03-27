@@ -21,17 +21,17 @@
 use {
     crate::{
         program,
-        token_messenger::{
+        token_messenger_v2::{
             burn_message::BurnMessage,
             error::TokenMessengerError,
             events::DepositForBurn,
             state::{RemoteTokenMessenger, TokenMessenger},
         },
-        token_minter::state::{LocalToken, TokenMinter},
+        token_minter_v2::state::{LocalToken, TokenMinter},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
-    message_transmitter::{
+    message_transmitter_v2::{
         cpi::accounts::SendMessageContext,
         instructions::{SendMessageParams, SendMessageWithCallerParams},
         state::MessageTransmitter,
@@ -95,9 +95,9 @@ pub struct DepositForBurnContext<'info> {
     pub message_sent_event_data: Signer<'info>,
 
     pub message_transmitter_program:
-        Program<'info, message_transmitter::program::MessageTransmitter>,
+        Program<'info, message_transmitter_v2::program::MessageTransmitterV2>,
 
-    pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinter>,
+    pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinterV2>,
 
     pub token_program: Program<'info, Token>,
 
@@ -195,7 +195,7 @@ pub fn deposit_for_burn_helper(
             recipient: ctx.accounts.remote_token_messenger.token_messenger,
             message_body: burn_message,
         };
-        message_transmitter::cpi::send_message(cpi_ctx, cpi_params)?.get()
+        message_transmitter_v2::cpi::send_message(cpi_ctx, cpi_params)?.get()
     } else {
         let cpi_params = SendMessageWithCallerParams {
             destination_domain,
@@ -203,7 +203,7 @@ pub fn deposit_for_burn_helper(
             destination_caller: *destination_caller,
             message_body: burn_message,
         };
-        message_transmitter::cpi::send_message_with_caller(cpi_ctx, cpi_params)?.get()
+        message_transmitter_v2::cpi::send_message_with_caller(cpi_ctx, cpi_params)?.get()
     };
 
     // emit DepositForBurn event

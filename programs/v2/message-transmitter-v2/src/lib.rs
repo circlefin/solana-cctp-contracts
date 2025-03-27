@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+ #![allow(unexpected_cfgs)]
+
 //! MessageTransmitterV2 program entrypoint
 
 pub mod error;
@@ -26,6 +28,7 @@ pub mod state;
 pub mod utils;
 
 use {anchor_lang::prelude::*, instructions::*};
+
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

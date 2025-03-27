@@ -19,9 +19,9 @@
  //! DepositForBurnWithCaller instruction handler
 
 use {
-    crate::{
-        token_messenger::error::TokenMessengerError,
-        token_messenger::instructions::DepositForBurnContext,
+    crate::token_messenger_v2::{
+        error::TokenMessengerError,
+        instructions::DepositForBurnContext,
     },
     anchor_lang::prelude::*,
 };
@@ -51,7 +51,7 @@ pub fn deposit_for_burn_with_caller(
         TokenMessengerError::InvalidDestinationCaller
     );
 
-    crate::token_messenger::instructions::deposit_for_burn_helper(
+    crate::token_messenger_v2::instructions::deposit_for_burn_helper(
         ctx,
         params.amount,
         params.destination_domain,

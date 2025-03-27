@@ -21,13 +21,13 @@
 use {
     crate::{
         program,
-        token_messenger::{
+        token_messenger_v2::{
             burn_message::BurnMessage, error::TokenMessengerError, events::DepositForBurn,
             state::TokenMessenger,
         },
     },
     anchor_lang::prelude::*,
-    message_transmitter::{
+    message_transmitter_v2::{
         cpi::accounts::ReplaceMessageContext, instructions::ReplaceMessageParams, message::Message,
         state::MessageTransmitter,
     },
@@ -61,9 +61,9 @@ pub struct ReplaceDepositForBurnContext<'info> {
     pub message_sent_event_data: Signer<'info>,
 
     pub message_transmitter_program:
-        Program<'info, message_transmitter::program::MessageTransmitter>,
+        Program<'info, message_transmitter_v2::program::MessageTransmitterV2>,
 
-    pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinter>,
+    pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinterV2>,
 
     pub system_program: Program<'info, System>,
 }
@@ -149,7 +149,7 @@ pub fn replace_deposit_for_burn(
         new_destination_caller: params.new_destination_caller,
     };
 
-    let nonce = message_transmitter::cpi::replace_message(cpi_ctx, cpi_params)?.get();
+    let nonce = message_transmitter_v2::cpi::replace_message(cpi_ctx, cpi_params)?.get();
 
     // emit DepositForBurn event
     emit_cpi!(DepositForBurn {

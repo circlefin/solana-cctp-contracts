@@ -19,7 +19,7 @@
  //! State
 
 use {
-    crate::token_minter::error::TokenMinterError,
+    crate::token_minter_v2::error::TokenMinterError,
     anchor_lang::prelude::*,
     anchor_spl::token::{Burn, Transfer},
 };

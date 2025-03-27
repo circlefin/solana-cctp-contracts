@@ -21,11 +21,11 @@
 use {
     crate::{
         program,
-        token_messenger::{error::TokenMessengerError, state::TokenMessenger},
-        token_minter::{error::TokenMinterError, events::SetTokenController, state::TokenMinter},
+        token_messenger_v2::{error::TokenMessengerError, state::TokenMessenger},
+        token_minter_v2::{error::TokenMinterError, events::SetTokenController, state::TokenMinter},
     },
     anchor_lang::prelude::*,
-    message_transmitter::utils,
+    message_transmitter_v2::utils,
 };
 
 // Instruction accounts
@@ -65,11 +65,11 @@ pub struct InitializeContext<'info> {
     )]
     pub token_minter: Box<Account<'info, TokenMinter>>,
 
-    /// CHECK: ProgramData account, not used for anchor tests
-    #[account()]
-    pub token_messenger_minter_program_data: AccountInfo<'info /*, ProgramData*/>,
+    // Ensure only upgrade_authority can call initialize
+    #[account(constraint = token_messenger_minter_program_data.upgrade_authority_address == Some(upgrade_authority.key()))]
+    pub token_messenger_minter_program_data: Account<'info, ProgramData>,
 
-    pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinter>,
+    pub token_messenger_minter_program: Program<'info, program::TokenMessengerMinterV2>,
 
     pub system_program: Program<'info, System>,
 }
@@ -84,16 +84,6 @@ pub struct InitializeParams {
 
 // Instruction handler
 pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) -> Result<()> {
-    message_transmitter::utils::validate_upgrade_authority::<program::TokenMessengerMinter>(
-        ctx.accounts.upgrade_authority.key(),
-        &ctx.accounts
-            .token_messenger_minter_program_data
-            .to_account_info(),
-        &ctx.accounts
-            .token_messenger_minter_program
-            .to_account_info(),
-    )?;
-
     // record token_messenger state
     let authority = ctx.accounts.upgrade_authority.key();
     let token_messenger = ctx.accounts.token_messenger.as_mut();
@@ -101,10 +91,7 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
     token_messenger.pending_owner = Pubkey::default();
     token_messenger.local_message_transmitter = params.local_message_transmitter;
     token_messenger.message_body_version = params.message_body_version;
-    token_messenger.authority_bump = *ctx
-        .bumps
-        .get("authority_pda")
-        .ok_or(ProgramError::InvalidSeeds)?;
+    token_messenger.authority_bump = ctx.bumps.authority_pda;
 
     // validate the state
     require!(
@@ -117,10 +104,7 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
     token_minter.token_controller = params.token_controller;
     token_minter.pauser = authority;
     token_minter.paused = false;
-    token_minter.bump = *ctx
-        .bumps
-        .get("token_minter")
-        .ok_or(ProgramError::InvalidSeeds)?;
+    token_minter.bump = ctx.bumps.token_minter;
 
     // validate the state
     require!(

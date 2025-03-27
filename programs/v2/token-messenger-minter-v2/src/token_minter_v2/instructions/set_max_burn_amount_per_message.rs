@@ -19,7 +19,7 @@
  //! SetMaxBurnAmountPerMessage instruction handler
 
 use {
-    crate::token_minter::{
+    crate::token_minter_v2::{
         error::TokenMinterError,
         events::SetBurnLimitPerMessage,
         state::{LocalToken, TokenMinter},

@@ -27,7 +27,7 @@ use {
         utils,
     },
     anchor_lang::prelude::*,
-    solana_program::{
+    anchor_lang::solana_program::{
         instruction::{AccountMeta, Instruction},
         program,
     },
@@ -160,10 +160,9 @@ pub fn receive_message<'info>(
         MessageTransmitterError::InvalidRecipientProgram
     );
 
-    let authority_bump = *ctx
+    let authority_bump = ctx
         .bumps
-        .get("authority_pda")
-        .ok_or(ProgramError::InvalidSeeds)?;
+        .authority_pda;
     let authority_seeds: &[&[&[u8]]] = &[&[
         b"message_transmitter_authority",
         receiver_key.as_ref(),
@@ -204,13 +203,12 @@ pub fn receive_message<'info>(
         data,
     };
 
+    let mut account_infos = vec![ctx.accounts.authority_pda.to_account_info()];
+    account_infos.extend(ctx.remaining_accounts.iter().map(|acc| acc.to_account_info()));
+
     program::invoke_signed(
         &instruction,
-        &[
-            &[ctx.accounts.authority_pda.to_account_info()],
-            ctx.remaining_accounts,
-        ]
-        .concat(),
+        &account_infos,
         authority_seeds,
     )?;
 

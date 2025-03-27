@@ -23,7 +23,7 @@ use {
         error::MessageTransmitterError, events::AttesterDisabled, state::MessageTransmitter, utils,
     },
     anchor_lang::prelude::*,
-    solana_program::pubkey::PUBKEY_BYTES,
+    anchor_lang::solana_program::pubkey::PUBKEY_BYTES,
 };
 
 // Instruction accounts

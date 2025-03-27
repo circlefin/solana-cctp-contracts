@@ -20,8 +20,8 @@
 
 use {
     crate::{
-        token_messenger::{error::TokenMessengerError, state::TokenMessenger},
-        token_minter::{error::TokenMinterError, events::SetTokenController, state::TokenMinter},
+        token_messenger_v2::{error::TokenMessengerError, state::TokenMessenger},
+        token_minter_v2::{error::TokenMinterError, events::SetTokenController, state::TokenMinter},
     },
     anchor_lang::prelude::*,
 };

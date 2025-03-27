@@ -20,13 +20,13 @@
 
 use {
     crate::{
-        token_messenger::{
+        token_messenger_v2::{
             burn_message::BurnMessage,
             error::TokenMessengerError,
             events::MintAndWithdraw,
             state::{RemoteTokenMessenger, TokenMessenger},
         },
-        token_minter::state::{LocalToken, TokenMinter, TokenPair},
+        token_minter_v2::state::{LocalToken, TokenMinter, TokenPair},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Token, TokenAccount},
@@ -52,7 +52,7 @@ pub struct HandleReceiveMessageContext<'info> {
     #[account(
         seeds = [b"message_transmitter_authority", crate::ID.as_ref()],
         bump = params.authority_bump,
-        seeds::program = message_transmitter::ID
+        seeds::program = message_transmitter_v2::ID
     )]
     pub authority_pda: Signer<'info>,
 
@@ -82,6 +82,7 @@ pub struct HandleReceiveMessageContext<'info> {
         seeds = [
             b"token_pair",
             params.remote_domain.to_string().as_bytes(),
+            &[token_messenger.authority_bump],
             BurnMessage::new(token_messenger.message_body_version, &params.message_body)?.burn_token()?.as_ref()
         ],
         bump = token_pair.bump,

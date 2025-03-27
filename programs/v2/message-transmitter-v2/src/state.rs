@@ -22,7 +22,7 @@ use {
     crate::{error::MessageTransmitterError, utils},
     anchor_lang::prelude::*,
     libsecp256k1::Signature as EVMSignature,
-    solana_program::{
+    anchor_lang::solana_program::{
         keccak::{Hash, Hasher},
         secp256k1_recover::{secp256k1_recover, Secp256k1RecoverError},
     },

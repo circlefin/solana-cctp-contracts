@@ -22,7 +22,7 @@ use {
     crate::{error::MessageTransmitterError, utils},
     anchor_lang::prelude::*,
     num_traits::FromBytes,
-    solana_program::keccak::{Hash, Hasher},
+    anchor_lang::solana_program::keccak::{Hash, Hasher},
     std::fmt::Display,
 };
 

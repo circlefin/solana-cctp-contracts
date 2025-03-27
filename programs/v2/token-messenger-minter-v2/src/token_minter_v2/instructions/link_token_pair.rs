@@ -19,13 +19,13 @@
  //! LinkTokenPair instruction handler
 
 use {
-    crate::token_minter::{
+    crate::token_minter_v2::{
         error::TokenMinterError,
         events::TokenPairLinked,
         state::{TokenMinter, TokenPair},
     },
     anchor_lang::prelude::*,
-    message_transmitter::utils,
+    message_transmitter_v2::utils,
 };
 
 // Instruction accounts
@@ -79,10 +79,7 @@ pub fn link_token_pair(
     token_pair.remote_domain = params.remote_domain;
     token_pair.remote_token = params.remote_token;
     token_pair.local_token = params.local_token;
-    token_pair.bump = *ctx
-        .bumps
-        .get("token_pair")
-        .ok_or(ProgramError::InvalidSeeds)?;
+    token_pair.bump = ctx.bumps.token_pair;
 
     // validate state
     require!(

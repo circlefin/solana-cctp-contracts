@@ -19,7 +19,7 @@
  //! Pause instruction handler
 
 use {
-    crate::token_minter::{error::TokenMinterError, events::Pause, state::TokenMinter},
+    crate::token_minter_v2::{error::TokenMinterError, events::Pause, state::TokenMinter},
     anchor_lang::prelude::*,
 };
 

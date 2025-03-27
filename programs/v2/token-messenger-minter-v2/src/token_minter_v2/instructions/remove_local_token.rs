@@ -19,7 +19,7 @@
  //! RemoveLocalToken instruction handler
 
 use {
-    crate::token_minter::{
+    crate::token_minter_v2::{
         error::TokenMinterError,
         events::LocalTokenRemoved,
         state::{LocalToken, TokenMinter},
