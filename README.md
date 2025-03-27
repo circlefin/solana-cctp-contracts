@@ -31,14 +31,10 @@ To speed calls up and skip the setup checks add the `--skip-setup` flag to any c
 ./run.sh clean_v1
 # Clean V2 programs
 ./run.sh clean_v2
-# Run Unit tests on V1 programs
+# Run tests on V1 programs
 ./run.sh test_v1
-# Run Unit tests on V2 programs
+# Run tests on V2 programs
 ./run.sh test_v2
-# Run ITs on V1 programs
-./run.sh its_v1
-# Run ITs on V2 programs
-./run.sh its_v2
 ```
 
 ## Deployments
@@ -108,19 +104,13 @@ enabled via the [.cargo/config.toml](.cargo/config.toml) file.
 
 ### Test
 
-V1 unit tests are executed with the run script:
+Tests can be started with:
 
 ```sh
 ./run.sh test_v1
 ```
 
-Integration tests can be started as follows:
-
-```sh
-./run.sh its_v1
-```
-
-By default, integration tests are executed on a local validator, so it won't cost you any SOL.
+By default, integration tests are executed on a local validator.
 
 ### Deploy
 

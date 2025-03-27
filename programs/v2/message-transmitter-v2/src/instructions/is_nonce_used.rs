@@ -37,18 +37,19 @@ pub struct IsNonceUsedParams {
 
 // Instruction handler
 pub fn is_nonce_used(ctx: Context<IsNonceUsedContext>, params: &IsNonceUsedParams) -> Result<bool> {
-    // Attempt to access the state of UsedNonces from the account
-    let used_nonces_account_data = ctx.accounts.used_nonces.data.borrow();
-    
     // Check if the account data is empty
-    if used_nonces_account_data.is_empty() {
+    if ctx.accounts.used_nonces.data_is_empty() {
         return Ok(false);
     }
-    
+
+    // Check that the account is owned by ours program
     require_keys_eq!(*ctx.accounts.used_nonces.owner, crate::ID);
 
+    // Access the state of UsedNonces from the account
+    let mut data: &[u8] = &ctx.accounts.used_nonces.data.borrow();
+    
     // Try to convert the bytes into the UsedNonces struct
-    let used_nonces: UsedNonces = UsedNonces::try_from_slice(&used_nonces_account_data)?;
+    let used_nonces = UsedNonces::try_deserialize(&mut data)?;
     
     // Check if nonce is used
     Ok(used_nonces.is_nonce_used(params.nonce)?)

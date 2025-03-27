@@ -37,8 +37,7 @@ solana_security_txt::security_txt! {
     contacts: "link:https://github.com/circlefin/solana-cctp-contracts/blob/master/SECURITY.md",
     policy: "https://github.com/circlefin/solana-cctp-contracts/blob/master/SECURITY.md"
 }
-// TODO: update for v2
-declare_id!("CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd");
+declare_id!("CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC");
 
 #[program]
 pub mod message_transmitter_v2 {

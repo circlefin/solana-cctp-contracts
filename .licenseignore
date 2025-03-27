@@ -1,3 +1,10 @@
 pkg:cargo/crypto-mac
 pkg:cargo/hmac
 pkg:cargo/unicode-ident
+pkg:npm/borsh
+pkg:npm/elliptic
+pkg:npm/pako
+pkg:npm/sha.js
+pkg:npm/@types/bn.js
+pkg:npm/@types/chai
+pkg:npm/@types/mocha

@@ -52,6 +52,7 @@ pub struct LinkTokenPairContext<'info> {
         seeds = [
             b"token_pair",
             params.remote_domain.to_string().as_bytes(),
+            &[token_minter.bump],
             params.remote_token.as_ref()
         ],
         bump

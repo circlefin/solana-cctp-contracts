@@ -53,11 +53,6 @@ function build_v2() (
 
 function test_v1() {
   setup_v1_versions
-  cargo test -- --nocapture
-}
-
-function its_v1() {
-  setup_v1_versions
   yarn install
   anchor test -- --features test
 }
@@ -65,13 +60,7 @@ function its_v1() {
 function test_v2() {
   setup_v2_versions
   cd programs/v2
-  cargo test -- --nocapture
-}
-
-function its_v2() {
-  setup_v2_versions
   yarn install
-  cd programs/v2
   anchor test -- --features test
 }
 

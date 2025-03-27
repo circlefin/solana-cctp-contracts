@@ -33,8 +33,7 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/circlefin/solana-cctp-contracts/blob/master/SECURITY.md"
 }
 
-// TODO: update for v2
-declare_id!("CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3");
+declare_id!("CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe");
 
 #[program]
 pub mod token_messenger_minter_v2 {

@@ -82,7 +82,7 @@ pub struct HandleReceiveMessageContext<'info> {
         seeds = [
             b"token_pair",
             params.remote_domain.to_string().as_bytes(),
-            &[token_messenger.authority_bump],
+            &[token_minter.bump],
             BurnMessage::new(token_messenger.message_body_version, &params.message_body)?.burn_token()?.as_ref()
         ],
         bump = token_pair.bump,

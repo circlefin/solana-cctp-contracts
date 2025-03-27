@@ -10,7 +10,9 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Run V1 tests
-        run: ./run.sh its_v1 --setup-keypair
+        run: ./run.sh test_v1 --setup-keypair
+      - name: Run V2 tests
+        run: ./run.sh test_v2
 
   scan:
     needs: ci
