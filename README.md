@@ -20,9 +20,9 @@ All commands check for installation of [rust](https://www.rust-lang.org/tools/in
 [solana CLI](https://solana.com/docs/intro/installation), and
 [anchor CLI](https://www.anchor-lang.com/docs/installation#install-anchor-cli).
 
-To speed calls up and skip the setup checks add the `--skip-setup` flag to any command.
-
 ```bash
+# One-time setup
+source ./run.sh setup
 # Build V1 programs
 ./run.sh build_v1
 # Build V2 programs

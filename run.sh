@@ -20,123 +20,119 @@ set -e
 
 SOLANA_CLI_VERSION=1.18.26
 V1_RUST_VERSION=1.78.0
-V2_RUST_VERSION=nightly
+V2_RUST_VERSION=nightly-2025-03-23
 V1_ANCHOR_VERSION=0.28.0
 V2_ANCHOR_VERSION=0.31.0
 
 function clean_v1() {
-  setup_v1_versions
   anchor clean
   echo "V1 program build artifacts cleaned"
 }
 
 function clean_v2() (
-  setup_v2_versions
-  cd programs/v2
+  pushd programs/v2
   anchor clean
   echo "V2 program build artifacts cleaned"
+  popd
 )
 
 function build_v1() {
-  setup_v1_versions
-
   anchor build -p message_transmitter
   anchor build -p token_messenger_minter
 }
 
 function build_v2() (
-  setup_v2_versions
-  cd programs/v2
+  pushd programs/v2
   anchor build -p message_transmitter_v2
   anchor build -p token_messenger_minter_v2
+  popd
 )
 
 function test_v1() {
-  setup_v1_versions
   yarn install
   anchor test -- --features test
 }
 
 function test_v2() {
-  setup_v2_versions
-  cd programs/v2
+  pushd programs/v2
   yarn install
   anchor test -- --features test
+  popd
 }
 
-function setup_v1_versions() {
-  if ! rustc --version | grep ${V1_RUST_VERSION} > /dev/null; then
-    rustup default ${V1_RUST_VERSION}
-  fi
-  if ! avm list | grep "${V1_ANCHOR_VERSION}.*installed" > /dev/null; then
-    echo "AVM: Installing Anchor version ${V1_ANCHOR_VERSION}"
-    avm install ${V1_ANCHOR_VERSION}
-  fi
-  avm use ${V1_ANCHOR_VERSION}
+function setup_v1() {
+  install_rust $V1_RUST_VERSION
+  install_solana
+  install_avm $V1_ANCHOR_VERSION
+  create_key_pair
+  yarn install
 }
 
-function setup_v2_versions() {
-  if ! rustc --version | grep ${V2_RUST_VERSION} > /dev/null; then
-    rustup default ${V2_RUST_VERSION}
+function setup_v2() {
+  install_rust $V2_RUST_VERSION
+  install_solana
+  install_avm $V2_ANCHOR_VERSION
+  create_key_pair
+  pushd programs/v2
+  yarn install
+  popd
+}
+
+function create_key_pair() {
+  if test -e ~/.config/solana/id.json; then
+    echo "Local solana keypair already exists"
+  else
+    echo "No local solana keypair found, creating one"
+    touch ~/.config/solana/id.json
+    solana-keygen new -o ~/.config/solana/id.json --force --no-bip39-passphrase
   fi
-  if ! avm list | grep "${V2_ANCHOR_VERSION}.*installed" > /dev/null; then
-    echo "AVM: Installing Anchor version ${V2_ANCHOR_VERSION}"
-    avm install ${V2_ANCHOR_VERSION}
-  fi
-  avm use ${V2_ANCHOR_VERSION}
 }
 
 function setup() {
-  # Check if rust is installed
-  if ! rustup -V >/dev/null; then
-      install_rust
-  fi
-
-  # Check if solana cli is installed
-  if ! which solana 2 >/dev/null || ! solana --version >/dev/null; then
-    install_solana
-  fi
-
-  # Check if avm is installed
-  if ! avm --version >/dev/null; then
-    install_avm
-  fi
-
-  yarn install
+  setup_v2
+  setup_v1
 }
 
 function install_avm() {
-  echo "INSTALLING AVM -- https://www.anchor-lang.com/docs/installation"
-  cargo install --git https://github.com/coral-xyz/anchor avm --force
-  avm --version
-  echo -e "AVM successfully installed\n"
+  if ! avm --version >/dev/null; then
+    echo "INSTALLING AVM -- https://www.anchor-lang.com/docs/installation"
+    cargo install --git https://github.com/coral-xyz/anchor --locked --tag v$1 avm --force
+    avm --version
+    echo -e "AVM successfully installed\n"
+  fi
+
+  if ! avm list | grep "$.*installed" > /dev/null; then
+    echo "AVM: Installing Anchor version $1"
+    avm install "$1"
+  fi
+
+  avm use "$1"
 }
 
 function install_rust() {
-  echo "INSTALLING RUST -- https://www.rust-lang.org/tools/install"
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=${V1_RUST_VERSION} -y
-  # For github actions only
-  test -f /home/runner/.profile && source /home/runner/.profile
-  source "$HOME/.cargo/env"
-  rustup default ${V2_RUST_VERSION}
-  rustup -V
-  echo -e "Rust versions ${V2_RUST_VERSION} and ${V1_RUST_VERSION} successfully installed\n"
+  if ! rustup -V >/dev/null; then
+    echo "INSTALLING RUST -- https://www.rust-lang.org/tools/install"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain="$1" -y
+    # For github actions only
+    test -f /home/runner/.profile && source /home/runner/.profile
+    source "$HOME/.cargo/env"
+    rustup -V
+  else
+    rustup toolchain install "$1" --allow-downgrade
+  fi
+  rustup default "$1"
+  echo "Rust version $1 successfully installed"
 }
 
 function install_solana() {
-  echo "INSTALLING SOLANA-CLI -- https://docs.solana.com/cli/install-solana-cli-tools"
-  sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_CLI_VERSION}/install)"
-  # For github actions only
-  [ -e /home/runner/.profile ] && source /home/runner/.profile
-  solana --version
-  echo -e "Solana-CLI successfully installed\n"
-}
-
-function setup_local_keypair() {
-  echo "Setting up a local solana keypair"
-  # create a local keypair for tests
-  touch ~/.config/solana/id.json
-  solana-keygen new -o ~/.config/solana/id.json --force --no-bip39-passphrase
+  if ! which solana 2>/dev/null || ! solana --version >/dev/null; then
+    echo "INSTALLING SOLANA-CLI -- https://docs.solana.com/cli/install-solana-cli-tools"
+    sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_CLI_VERSION}/install)"
+    # For github actions only
+    test -f /home/runner/.profile && source /home/runner/.profile
+    solana --version
+    echo -e "Solana-CLI successfully installed\n"
+  fi
 }
 
 # This script takes in a function name as the first argument, 
@@ -146,13 +142,6 @@ if [ -z $1 ]; then
   echo "Usage: bash run.sh <function>";
   exit 1;
 elif declare -f "$1" > /dev/null; then
-  if [[ "$1" != "setup" && "$2" != "--skip-setup" ]]; then
-    setup
-  fi
-  if [[ $2 == "--setup-keypair" ]]; then
-    setup_local_keypair
-  fi
-
   "$@";
 else
   echo "Function '$1' does not exist";

@@ -29,3 +29,7 @@ members = [
     "programs/message-transmitter",
     "programs/token-messenger-minter",
 ]
+
+[toolchain]
+anchor_version = "0.28.0" # `anchor-cli` version to use
+solana_version = "1.18.26" # `solana-cli` version to use
