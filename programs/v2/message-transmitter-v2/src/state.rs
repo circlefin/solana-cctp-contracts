@@ -245,15 +245,4 @@ impl UsedNonces {
 
         Ok((entry, bit))
     }
-
-    /// Adds a delimiter for the used_nonces PDA seeds for domains >= 11
-    /// Only add to domains >= 11 to prevent existing (pre-upgrade on mainnet)
-    /// PDAs from changing.
-    pub fn used_nonces_seed_delimiter(source_domain: u32) -> &'static [u8] {
-        if source_domain < 11 {
-            b""
-        } else {
-            b"-"
-        }
-    }
 }

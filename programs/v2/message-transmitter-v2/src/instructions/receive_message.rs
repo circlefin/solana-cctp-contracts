@@ -33,6 +33,11 @@ use {
     },
 };
 
+// Seed delimiter for used nonces PDA
+fn used_nonces_seed_delimiter(_: u32) -> &'static [u8] {
+    b"-"
+}
+
 // Instruction accounts
 #[event_cpi]
 #[derive(Accounts)]
@@ -62,7 +67,7 @@ pub struct ReceiveMessageContext<'info> {
         seeds = [
             b"used_nonces", 
             Message::new(message_transmitter.version, &params.message)?.source_domain()?.to_string().as_bytes(),
-            UsedNonces::used_nonces_seed_delimiter(Message::new(message_transmitter.version, &params.message)?.source_domain()?),
+            used_nonces_seed_delimiter(0u32),
             UsedNonces::first_nonce(Message::new(message_transmitter.version, &params.message)?.nonce()?)?.to_string().as_bytes()
         ],
         bump
