@@ -78,6 +78,7 @@ pub struct InitializeContext<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct InitializeParams {
     pub token_controller: Pubkey,
+    pub denylister: Pubkey,
     pub local_message_transmitter: Pubkey,
     pub message_body_version: u32,
 }
@@ -90,6 +91,7 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
     token_messenger.owner = authority;
     token_messenger.pending_owner = Pubkey::default();
     token_messenger.local_message_transmitter = params.local_message_transmitter;
+    token_messenger.denylister = params.denylister;
     token_messenger.message_body_version = params.message_body_version;
     token_messenger.authority_bump = ctx.bumps.authority_pda;
 

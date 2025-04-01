@@ -23,11 +23,14 @@ use anchor_lang::prelude::*;
 #[account]
 #[derive(Debug, InitSpace)]
 pub struct TokenMessenger {
+    pub denylister: Pubkey,
     pub owner: Pubkey,
     pub pending_owner: Pubkey,
     pub local_message_transmitter: Pubkey,
     pub message_body_version: u32,
     pub authority_bump: u8,
+    #[max_len(0)]
+    pub denylist: Vec<Pubkey>,
 }
 
 #[account]
@@ -40,6 +43,11 @@ pub struct RemoteTokenMessenger {
 impl TokenMessenger {
     pub fn validate(&self) -> bool {
         self.owner != Pubkey::default() && self.local_message_transmitter != Pubkey::default()
+    }
+
+    /// Checks if the account is in the denylist
+    pub fn is_account_denylisted(&self, account: &Pubkey) -> bool {
+        self.denylist.contains(account)
     }
 }
 

@@ -45,6 +45,27 @@ pub mod token_messenger_minter_v2 {
         token_messenger_v2::instructions::initialize(ctx, &params)
     }
 
+    pub fn denylist_account(
+        ctx: Context<DenylistContext>,
+        params: DenylistParams,
+    ) -> Result<()> {
+        token_messenger_v2::instructions::denylist_account(ctx, &params)
+    }
+
+    pub fn undenylist_account(
+        ctx: Context<UndenylistContext>,
+        params: UndenylistParams,
+    ) -> Result<()> {
+        token_messenger_v2::instructions::undenylist_account(ctx, &params)
+    }
+
+    pub fn update_denylister(
+        ctx: Context<UpdateDenylisterContext>,
+        params: UpdateDenylisterParams,
+    ) -> Result<()> {
+        token_messenger_v2::instructions::update_denylister(ctx, &params)
+    }
+
     pub fn transfer_ownership(
         ctx: Context<TransferOwnershipContext>,
         params: TransferOwnershipParams,

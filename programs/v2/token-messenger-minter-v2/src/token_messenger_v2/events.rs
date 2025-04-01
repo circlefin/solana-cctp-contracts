@@ -62,3 +62,19 @@ pub struct RemoteTokenMessengerRemoved {
     pub domain: u32,
     pub token_messenger: Pubkey,
 }
+
+#[event]
+pub struct DenylisterChanged {
+    pub old_denylister: Pubkey,
+    pub new_denylister: Pubkey,
+}
+
+#[event]
+pub struct Denylisted {
+    pub account: Pubkey,
+}
+
+#[event]
+pub struct UnDenylisted {
+    pub account: Pubkey,
+}

@@ -33,6 +33,8 @@ export class TestClient {
   tokenController: Keypair;
   localTokenMint: Keypair;
   user: Keypair;
+  denylister: Keypair;
+  denylistedAccount: Keypair;
 
   provider: anchor.AnchorProvider;
   program: anchor.Program<TokenMessengerMinterV2>;
@@ -67,6 +69,8 @@ export class TestClient {
     this.owner = Keypair.generate();
     this.pauser = Keypair.generate();
     this.tokenController = Keypair.generate();
+    this.denylister = Keypair.generate();
+    this.denylistedAccount = Keypair.generate();
     this.localTokenMint = Keypair.generate();
     this.user = Keypair.generate();
 
@@ -256,6 +260,7 @@ export class TestClient {
 
   initialize = async (
     tokenController: PublicKey,
+    denylister: PublicKey,
     messageBodyVersion: number
   ) => {
     const programData = PublicKey.findProgramAddressSync(
@@ -266,6 +271,7 @@ export class TestClient {
     return await this.program.methods
       .initialize({
         tokenController,
+        denylister,
         localMessageTransmitter: this.messageTransmitterProgram.programId,
         messageBodyVersion,
       })
@@ -278,6 +284,41 @@ export class TestClient {
         tokenMessengerMinterProgram: this.program.programId,
         systemProgram: SystemProgram.programId,
       })
+      .rpc();
+  };
+
+  denylistAccount = async (account: PublicKey) => {
+    return await this.program.methods
+      .denylistAccount({ account })
+      .accounts({
+        denylister: this.denylister.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([this.denylister])
+      .rpc();
+  };
+
+  undenylistAccount = async (account: PublicKey) => {
+    return await this.program.methods
+      .undenylistAccount({ account })
+      .accounts({
+        denylister: this.denylister.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([this.denylister])
+      .rpc();
+  };
+
+  updateDenylister = async (newDenylister: PublicKey) => {
+    return await this.program.methods
+      .updateDenylister({ newDenylister })
+      .accounts({
+        owner: this.owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+      })
+      .signers([this.owner])
       .rpc();
   };
 
@@ -478,7 +519,8 @@ export class TestClient {
     amount: BN,
     destinationDomain: number,
     mintRecipient: PublicKey,
-    messageSentEventAccountKeypair: Keypair
+    messageSentEventAccountKeypair: Keypair,
+    owner: PublicKey = this.user.publicKey
   ) => {
     const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
@@ -492,8 +534,8 @@ export class TestClient {
         mintRecipient,
       })
       .accounts({
-        owner: this.user.publicKey,
-        eventRentPayer: this.user.publicKey,
+        owner,
+        eventRentPayer: owner,
         senderAuthorityPda: this.authorityPda.publicKey,
         burnTokenAccount: this.userTokenAccount,
         messageTransmitter: this.messageTransmitter.publicKey,
@@ -517,7 +559,8 @@ export class TestClient {
     destinationDomain: number,
     mintRecipient: PublicKey,
     destinationCaller: PublicKey,
-    messageSentEventAccountKeypair: Keypair
+    messageSentEventAccountKeypair: Keypair,
+    owner: PublicKey = this.user.publicKey
   ) => {
     const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
@@ -531,8 +574,8 @@ export class TestClient {
         destinationCaller,
       })
       .accounts({
-        owner: this.user.publicKey,
-        eventRentPayer: this.user.publicKey,
+        owner,
+        eventRentPayer: owner,
         senderAuthorityPda: this.authorityPda.publicKey,
         burnTokenAccount: this.userTokenAccount,
         messageTransmitter: this.messageTransmitter.publicKey,

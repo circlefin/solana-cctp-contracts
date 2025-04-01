@@ -48,4 +48,12 @@ pub enum TokenMessengerError {
     InvalidTokenPair,
     #[msg("Invalid token mint")]
     InvalidTokenMint,
+    #[msg("Account already denylisted")]
+    AlreadyDenylisted,
+    #[msg("Account not part of denylist")]
+    AccountNotInDenylist,
+    #[msg("Invalid Denylister")]
+    InvalidDenylister,
+    #[msg("Account part of the Denylist")]
+    DenylistedAccount,
 }

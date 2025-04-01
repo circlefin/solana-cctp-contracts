@@ -43,7 +43,9 @@ use {
 #[derive(Accounts)]
 #[instruction(params: DepositForBurnParams)]
 pub struct DepositForBurnContext<'info> {
-    #[account()]
+    #[account(
+        constraint = !token_messenger.is_account_denylisted(&owner.key()) @ TokenMessengerError::DenylistedAccount
+    )]
     pub owner: Signer<'info>,
 
     #[account(mut)]
