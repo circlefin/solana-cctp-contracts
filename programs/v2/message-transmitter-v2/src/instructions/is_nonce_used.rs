@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! IsNonceUsed instruction handler
+
+//! IsNonceUsed instruction handler
 
 use {crate::state::UsedNonces, anchor_lang::prelude::*};
 
@@ -47,10 +47,10 @@ pub fn is_nonce_used(ctx: Context<IsNonceUsedContext>, params: &IsNonceUsedParam
 
     // Access the state of UsedNonces from the account
     let mut data: &[u8] = &ctx.accounts.used_nonces.data.borrow();
-    
+
     // Try to convert the bytes into the UsedNonces struct
     let used_nonces = UsedNonces::try_deserialize(&mut data)?;
-    
+
     // Check if nonce is used
     Ok(used_nonces.is_nonce_used(params.nonce)?)
 }

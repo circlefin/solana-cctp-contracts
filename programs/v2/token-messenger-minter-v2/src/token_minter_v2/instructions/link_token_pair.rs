@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! LinkTokenPair instruction handler
+
+//! LinkTokenPair instruction handler
 
 use {
     crate::token_minter_v2::{

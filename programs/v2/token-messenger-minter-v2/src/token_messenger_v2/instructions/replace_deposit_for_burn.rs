@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! ReplaceDepositForBurn instruction handler
+
+//! ReplaceDepositForBurn instruction handler
 
 use {
     crate::{

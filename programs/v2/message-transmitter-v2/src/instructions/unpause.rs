@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! Unpause instruction handler
+
+//! Unpause instruction handler
 
 use {
     crate::{error::MessageTransmitterError, events::Unpause, state::MessageTransmitter},

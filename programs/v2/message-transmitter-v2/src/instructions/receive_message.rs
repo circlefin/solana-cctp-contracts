@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! ReceiveMessage instruction handler
+
+//! ReceiveMessage instruction handler
 
 use {
     crate::{
@@ -160,9 +160,7 @@ pub fn receive_message<'info>(
         MessageTransmitterError::InvalidRecipientProgram
     );
 
-    let authority_bump = ctx
-        .bumps
-        .authority_pda;
+    let authority_bump = ctx.bumps.authority_pda;
     let authority_seeds: &[&[&[u8]]] = &[&[
         b"message_transmitter_authority",
         receiver_key.as_ref(),
@@ -204,13 +202,13 @@ pub fn receive_message<'info>(
     };
 
     let mut account_infos = vec![ctx.accounts.authority_pda.to_account_info()];
-    account_infos.extend(ctx.remaining_accounts.iter().map(|acc| acc.to_account_info()));
+    account_infos.extend(
+        ctx.remaining_accounts
+            .iter()
+            .map(|acc| acc.to_account_info()),
+    );
 
-    program::invoke_signed(
-        &instruction,
-        &account_infos,
-        authority_seeds,
-    )?;
+    program::invoke_signed(&instruction, &account_infos, authority_seeds)?;
 
     emit_cpi!(MessageReceived {
         caller: ctx.accounts.caller.key(),

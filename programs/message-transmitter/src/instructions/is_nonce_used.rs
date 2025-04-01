@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! IsNonceUsed instruction handler
+
+//! IsNonceUsed instruction handler
 
 use {crate::state::UsedNonces, anchor_lang::prelude::*};
 

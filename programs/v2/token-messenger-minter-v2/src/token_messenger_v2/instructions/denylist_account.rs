@@ -20,7 +20,7 @@
 
 use {
     crate::token_messenger_v2::{
-        error::TokenMessengerError, events::Denylisted, state::TokenMessenger
+        error::TokenMessengerError, events::Denylisted, state::TokenMessenger,
     },
     anchor_lang::prelude::*,
     anchor_lang::solana_program::pubkey::PUBKEY_BYTES,
@@ -56,10 +56,7 @@ pub struct DenylistParams {
 }
 
 // Instruction handler
-pub fn denylist_account(
-    ctx: Context<DenylistContext>,
-    params: &DenylistParams,
-) -> Result<()> {
+pub fn denylist_account(ctx: Context<DenylistContext>, params: &DenylistParams) -> Result<()> {
     require!(
         !ctx.accounts
             .token_messenger
@@ -68,10 +65,7 @@ pub fn denylist_account(
     );
 
     // Add account to denylist
-    ctx.accounts
-        .token_messenger
-        .denylist
-        .push(params.account);
+    ctx.accounts.token_messenger.denylist.push(params.account);
 
     emit_cpi!(Denylisted {
         account: params.account,

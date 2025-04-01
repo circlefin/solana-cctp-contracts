@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! HandleReceiveMessage instruction handler
+
+//! HandleReceiveMessage instruction handler
 
 use {
     crate::{

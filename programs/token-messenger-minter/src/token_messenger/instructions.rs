@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! Instructions
+
+//! Instructions
 
 pub mod accept_ownership;
 pub mod add_remote_token_messenger;

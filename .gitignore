@@ -9,3 +9,4 @@ test-ledger
 .yarn/
 .yarnrc.yml
 !vendor/**/src/target
+.idea/

@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! SendMessageWithCaller instruction handler
+
+//! SendMessageWithCaller instruction handler
 
 use {
     crate::{error::MessageTransmitterError, instructions::SendMessageContext},

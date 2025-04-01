@@ -18,14 +18,12 @@
 
 //! Undenylist instruction handler
 
+use crate::token_messenger_v2::UnDenylisted;
 use {
-    crate::token_messenger_v2::{
-        error::TokenMessengerError, state::TokenMessenger,
-    },
+    crate::token_messenger_v2::{error::TokenMessengerError, state::TokenMessenger},
     anchor_lang::prelude::*,
     anchor_lang::solana_program::pubkey::PUBKEY_BYTES,
 };
-use crate::token_messenger_v2::UnDenylisted;
 
 // Instruction accounts
 #[event_cpi]
@@ -73,10 +71,7 @@ pub fn undenylist_account(
         .iter()
         .position(|x| x == &params.account)
     {
-        ctx.accounts
-            .token_messenger
-            .denylist
-            .remove(pos);
+        ctx.accounts.token_messenger.denylist.remove(pos);
 
         emit_cpi!(UnDenylisted {
             account: params.account

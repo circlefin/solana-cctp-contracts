@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! Pause instruction handler
+
+//! Pause instruction handler
 
 use {
     crate::{error::MessageTransmitterError, events::Pause, state::MessageTransmitter},

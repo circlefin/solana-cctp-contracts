@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! RemoveLocalToken instruction handler
+
+//! RemoveLocalToken instruction handler
 
 use {
     crate::token_minter::{

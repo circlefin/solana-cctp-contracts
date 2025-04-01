@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! Instructions
+
+//! Instructions
 
 pub mod accept_ownership;
 pub mod add_remote_token_messenger;
+pub mod denylist_account;
 pub mod deposit_for_burn;
 pub mod deposit_for_burn_with_caller;
 pub mod handle_receive_message;
@@ -27,13 +28,12 @@ pub mod initialize;
 pub mod remove_remote_token_messenger;
 pub mod replace_deposit_for_burn;
 pub mod transfer_ownership;
-pub mod denylist_account;
 pub mod undenylist_account;
 pub mod update_denylister;
 
 pub use {
-    accept_ownership::*, add_remote_token_messenger::*, deposit_for_burn::*,
+    accept_ownership::*, add_remote_token_messenger::*, denylist_account::*, deposit_for_burn::*,
     deposit_for_burn_with_caller::*, handle_receive_message::*, initialize::*,
     remove_remote_token_messenger::*, replace_deposit_for_burn::*, transfer_ownership::*,
-    denylist_account::*, undenylist_account::*, update_denylister::*
+    undenylist_account::*, update_denylister::*,
 };

@@ -117,8 +117,11 @@ function install_rust() {
     test -f /home/runner/.profile && source /home/runner/.profile
     source "$HOME/.cargo/env"
     rustup -V
+    # Only needed for github action
+    rustup component add rustfmt
   else
     rustup toolchain install "$1" --allow-downgrade
+    rustup component add --toolchain "$1" rustfmt
   fi
   rustup default "$1"
   echo "Rust version $1 successfully installed"

@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! UpdatePauser instruction handler
+
+//! UpdatePauser instruction handler
 
 use {
     crate::{

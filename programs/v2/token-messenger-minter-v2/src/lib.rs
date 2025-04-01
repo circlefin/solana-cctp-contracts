@@ -45,10 +45,7 @@ pub mod token_messenger_minter_v2 {
         token_messenger_v2::instructions::initialize(ctx, &params)
     }
 
-    pub fn denylist_account(
-        ctx: Context<DenylistContext>,
-        params: DenylistParams,
-    ) -> Result<()> {
+    pub fn denylist_account(ctx: Context<DenylistContext>, params: DenylistParams) -> Result<()> {
         token_messenger_v2::instructions::denylist_account(ctx, &params)
     }
 

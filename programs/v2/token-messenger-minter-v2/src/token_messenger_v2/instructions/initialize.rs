@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! Initialize instruction handler
+
+//! Initialize instruction handler
 
 use {
     crate::{
         program,
         token_messenger_v2::{error::TokenMessengerError, state::TokenMessenger},
-        token_minter_v2::{error::TokenMinterError, events::SetTokenController, state::TokenMinter},
+        token_minter_v2::{
+            error::TokenMinterError, events::SetTokenController, state::TokenMinter,
+        },
     },
     anchor_lang::prelude::*,
     message_transmitter_v2::utils,

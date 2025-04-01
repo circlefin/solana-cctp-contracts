@@ -18,13 +18,11 @@
 
 //! UpdateDenylister instruction handler
 
+use crate::token_messenger_v2::DenylisterChanged;
 use {
-    crate::token_messenger_v2::{
-        error::TokenMessengerError, state::TokenMessenger,
-    },
+    crate::token_messenger_v2::{error::TokenMessengerError, state::TokenMessenger},
     anchor_lang::prelude::*,
 };
-use crate::token_messenger_v2::DenylisterChanged;
 
 // Instruction accounts
 #[event_cpi]

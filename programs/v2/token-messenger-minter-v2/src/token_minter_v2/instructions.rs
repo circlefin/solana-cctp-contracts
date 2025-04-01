@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! Instructions
+
+//! Instructions
 
 pub mod add_local_token;
 pub mod burn_token_custody;

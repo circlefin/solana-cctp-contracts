@@ -14,7 +14,8 @@ jobs:
         run: |
           source ./run.sh setup_v1
           ./run.sh test_v1
-
+      - name: Run format check
+        run: cargo fmt -- --check
   build-and-test-v2:
     name: V2 Tests
     runs-on: ubuntu-latest
@@ -25,6 +26,8 @@ jobs:
         run: |
           source ./run.sh setup_v2
           ./run.sh test_v2
+      - name: Run format check
+        run: cd programs/v2 && cargo fmt -- --check
 
   scan:
     needs: [build-and-test-v1, build-and-test-v2]

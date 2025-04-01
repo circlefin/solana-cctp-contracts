@@ -21,8 +21,8 @@
 use {
     crate::{error::MessageTransmitterError, utils},
     anchor_lang::prelude::*,
-    num_traits::FromBytes,
     anchor_lang::solana_program::keccak::{Hash, Hasher},
+    num_traits::FromBytes,
     std::fmt::Display,
 };
 

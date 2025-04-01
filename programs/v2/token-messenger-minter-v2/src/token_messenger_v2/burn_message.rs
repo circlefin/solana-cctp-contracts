@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! BurnMessage
+
+//! BurnMessage
 
 use {
     crate::token_messenger_v2::error::TokenMessengerError, anchor_lang::prelude::*,

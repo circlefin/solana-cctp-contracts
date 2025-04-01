@@ -15,13 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! SetTokenController instruction handler
+
+//! SetTokenController instruction handler
 
 use {
     crate::{
         token_messenger_v2::{error::TokenMessengerError, state::TokenMessenger},
-        token_minter_v2::{error::TokenMinterError, events::SetTokenController, state::TokenMinter},
+        token_minter_v2::{
+            error::TokenMinterError, events::SetTokenController, state::TokenMinter,
+        },
     },
     anchor_lang::prelude::*,
 };

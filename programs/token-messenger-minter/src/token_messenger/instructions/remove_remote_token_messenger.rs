@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- //! RemoveRemoteTokenMessenger instruction handler
+
+//! RemoveRemoteTokenMessenger instruction handler
 
 use {
     crate::token_messenger::{

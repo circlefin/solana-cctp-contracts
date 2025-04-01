@@ -73,15 +73,13 @@ anchor verify --program-name token_messenger_minter --provider.cluster mainnet -
 3. Install the latest Rust stable from <https://rustup.rs/>. If you already have Rust, run `rustup update` to get the latest version.
 4. Install the latest Anchor framework from <https://www.anchor-lang.com/docs/installation>. If you already have Anchor, run `avm update` to get the latest version.
 
-Rustfmt is used to format the code. It requires `nightly` features to be activated:
+Rustfmt is used to format the code.
 
-5. Install `nightly` rust toolchain. <https://rust-lang.github.io/rustup/installation/index.html#installing-nightly>
-6. Execute `git config core.hooksPath .githooks` to activate pre-commit hooks.
+5. Execute `git config core.hooksPath .githooks` to activate pre-commit hooks.
 
 #### [Optional] Vscode setup
 
 1. Install `rust-analyzer` extension
-2. If formatting doesn't work, make sure that `rust-analyzer.rustfmt.extraArgs` is set to `+nightly`
 
 ### Build
 

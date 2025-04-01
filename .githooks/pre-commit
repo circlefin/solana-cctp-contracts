@@ -1,11 +1,21 @@
 #!/bin/bash
 
-diff=$(cargo +nightly fmt -- --check)
+diff=$(cargo fmt -- --check)
 result=$?
 
 if [[ ${result} -ne 0 ]] ; then
     cat <<\EOF
-There are some code style issues, run `cargo +nightly fmt` first.
+There are some code style issues, run `cargo fmt` first.
+EOF
+    exit 1
+fi
+
+diff=$(cd programs/v2 && cargo fmt -- --check)
+result=$?
+
+if [[ ${result} -ne 0 ]] ; then
+    cat <<\EOF
+There are some code style issues in programs/v2, run `cd programs/v2 && cargo fmt` first.
 EOF
     exit 1
 fi

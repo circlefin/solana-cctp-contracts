@@ -21,11 +21,11 @@
 use {
     crate::{error::MessageTransmitterError, utils},
     anchor_lang::prelude::*,
-    libsecp256k1::Signature as EVMSignature,
     anchor_lang::solana_program::{
         keccak::{Hash, Hasher},
         secp256k1_recover::{secp256k1_recover, Secp256k1RecoverError},
     },
+    libsecp256k1::Signature as EVMSignature,
 };
 
 #[account]
@@ -246,7 +246,7 @@ impl UsedNonces {
         Ok((entry, bit))
     }
 
-    /// Adds a delimiter for the used_nonces PDA seeds for domains >= 11 
+    /// Adds a delimiter for the used_nonces PDA seeds for domains >= 11
     /// Only add to domains >= 11 to prevent existing (pre-upgrade on mainnet)
     /// PDAs from changing.
     pub fn used_nonces_seed_delimiter(source_domain: u32) -> &'static [u8] {
