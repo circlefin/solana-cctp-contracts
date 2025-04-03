@@ -93,11 +93,9 @@ impl<'a> BurnMessage<'a> {
             .copy_from_slice(message_sender.as_ref());
         output[(Self::MAX_FEE_INDEX + Self::OFFSET)..Self::FEE_EXECUTED_INDEX]
             .copy_from_slice(&max_fee.to_be_bytes());
-        output
-            [(Self::FEE_EXECUTED_INDEX + Self::OFFSET)..Self::EXPIRATION_BLOCK_INDEX]
+        output[(Self::FEE_EXECUTED_INDEX + Self::OFFSET)..Self::EXPIRATION_BLOCK_INDEX]
             .copy_from_slice(&Self::EMPTY_FEE_EXECUTED.to_be_bytes());
-        output
-            [(Self::EXPIRATION_BLOCK_INDEX + Self::OFFSET)..Self::HOOK_DATA_INDEX]
+        output[(Self::EXPIRATION_BLOCK_INDEX + Self::OFFSET)..Self::HOOK_DATA_INDEX]
             .copy_from_slice(&Self::EMPTY_EXPIRATION_BLOCK.to_be_bytes());
 
         if !hook_data.is_empty() {
@@ -181,13 +179,12 @@ impl<'a> BurnMessage<'a> {
         &'a <T as FromBytes>::Bytes: TryFrom<&'a [u8]> + 'a,
     {
         require!(
-            self.data[index..(index + offset)]
-                .iter()
-                .all(|&x| x == 0),
+            self.data[index..(index + offset)].iter().all(|&x| x == 0),
             TokenMessengerError::MalformedMessage
         );
         Ok(T::from_be_bytes(
-            self.data[(index + offset)..utils::checked_add(index + offset, std::mem::size_of::<T>())?]
+            self.data
+                [(index + offset)..utils::checked_add(index + offset, std::mem::size_of::<T>())?]
                 .try_into()
                 .map_err(|_| TokenMessengerError::MalformedMessage)?,
         ))

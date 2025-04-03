@@ -75,6 +75,7 @@ pub struct MessageReceived {
     pub source_domain: u32,
     pub nonce: [u8; 32],
     pub sender: Pubkey,
+    pub finality_threshold_executed: u32,
     pub message_body: Vec<u8>,
 }
 

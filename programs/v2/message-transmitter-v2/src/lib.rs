@@ -114,13 +114,6 @@ pub mod message_transmitter_v2 {
         instructions::send_message(ctx, &params)
     }
 
-    pub fn send_message_with_caller(
-        ctx: Context<SendMessageContext>,
-        params: SendMessageWithCallerParams,
-    ) -> Result<()> {
-        instructions::send_message_with_caller(ctx, &params)
-    }
-
     pub fn receive_message<'info>(
         ctx: Context<'_, '_, '_, 'info, ReceiveMessageContext<'info>>,
         params: ReceiveMessageParams,
@@ -135,9 +128,7 @@ pub mod message_transmitter_v2 {
         instructions::reclaim_event_account(ctx, &params)
     }
 
-    pub fn is_nonce_used(
-        ctx: Context<IsNonceUsedContext>
-    ) -> Result<bool> {
+    pub fn is_nonce_used(ctx: Context<IsNonceUsedContext>) -> Result<bool> {
         instructions::is_nonce_used(ctx)
     }
 }

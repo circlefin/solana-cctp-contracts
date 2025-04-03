@@ -23,6 +23,7 @@ V1_RUST_VERSION=1.78.0
 V2_RUST_VERSION=nightly-2025-03-23
 V1_ANCHOR_VERSION=0.28.0
 V2_ANCHOR_VERSION=0.31.0
+BASE_PATH="${GITHUB_WORKSPACE:-$(cd "$(dirname "$0")" && pwd)}"
 
 function clean_v1() {
   anchor clean
@@ -30,7 +31,7 @@ function clean_v1() {
 }
 
 function clean_v2() (
-  pushd programs/v2
+  pushd "${BASE_PATH}"/programs/v2
   anchor clean
   echo "V2 program build artifacts cleaned"
   popd
@@ -42,7 +43,7 @@ function build_v1() {
 }
 
 function build_v2() (
-  pushd programs/v2
+  pushd "${BASE_PATH}"/programs/v2
   anchor build -p message_transmitter_v2
   anchor build -p token_messenger_minter_v2
   popd
@@ -54,7 +55,7 @@ function test_v1() {
 }
 
 function test_v2() {
-  pushd programs/v2
+  pushd "${BASE_PATH}"/programs/v2
   yarn install
   anchor test -- --features test
   popd
@@ -73,7 +74,7 @@ function setup_v2() {
   install_solana
   install_avm $V2_ANCHOR_VERSION
   create_key_pair
-  pushd programs/v2
+  pushd "${BASE_PATH}"/programs/v2
   yarn install
   popd
 }

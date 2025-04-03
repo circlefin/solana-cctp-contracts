@@ -32,8 +32,7 @@ use {
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
     message_transmitter_v2::{
-        cpi::accounts::SendMessageContext,
-        instructions::{SendMessageParams, SendMessageWithCallerParams},
+        cpi::accounts::SendMessageContext, instructions::SendMessageParams,
         state::MessageTransmitter,
     },
 };
@@ -201,25 +200,7 @@ pub fn deposit_for_burn_helper(
 
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, authority_seeds);
 
-    // call SendMessage or SendMessageWithCaller on MessageTransmitter and get the message nonce
-    if destination_caller == &Pubkey::default() {
-        let cpi_params = SendMessageParams {
-            destination_domain,
-            recipient: ctx.accounts.remote_token_messenger.token_messenger,
-            min_finality_threshold,
-            message_body: burn_message,
-        };
-        message_transmitter_v2::cpi::send_message(cpi_ctx, cpi_params)?
-    } else {
-        let cpi_params = SendMessageWithCallerParams {
-            destination_domain,
-            recipient: ctx.accounts.remote_token_messenger.token_messenger,
-            destination_caller: *destination_caller,
-            min_finality_threshold,
-            message_body: burn_message,
-        };
-        message_transmitter_v2::cpi::send_message_with_caller(cpi_ctx, cpi_params)?
-    };
+    // TODO call cpi send_message with or w/o caller
 
     // emit DepositForBurn event
     emit_cpi!(DepositForBurn {

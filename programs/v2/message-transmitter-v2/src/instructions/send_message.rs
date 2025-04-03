@@ -60,13 +60,11 @@ pub struct SendMessageContext<'info> {
 }
 
 // Instruction parameters
-// NOTE: Do not reorder parameters fields. repr(C) is used to fix the layout of the struct
-// so SendMessageWithCallerParams can be deserialized as SendMessageParams.
-#[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct SendMessageParams {
     pub destination_domain: u32,
     pub recipient: Pubkey,
+    pub destination_caller: Pubkey,
     pub min_finality_threshold: u32,
     pub message_body: Vec<u8>,
 }
@@ -79,7 +77,7 @@ pub fn send_message(ctx: Context<SendMessageContext>, params: &SendMessageParams
         &ctx.accounts.event_rent_payer.key(),
         params.destination_domain,
         &params.recipient,
-        &Pubkey::default(),
+        &params.destination_caller,
         &ctx.accounts.sender_program.key(),
         params.min_finality_threshold,
         &params.message_body,

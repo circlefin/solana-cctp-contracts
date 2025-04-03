@@ -33,6 +33,8 @@ use {
     },
 };
 
+const FINALITY_THRESHOLD_FINALIZED: u32 = 2000;
+
 // Instruction accounts
 #[event_cpi]
 #[derive(Accounts)]
@@ -85,10 +87,12 @@ pub struct ReceiveMessageParams {
     pub attestation: Vec<u8>,
 }
 
+// Same message params for both HandleReceiveFinalizedMessage and HandleReceiveUnFinalizedMessage
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct HandleReceiveMessageParams {
     pub remote_domain: u32,
     pub sender: Pubkey,
+    pub finality_threshold_executed: u32,
     pub message_body: Vec<u8>,
     pub authority_bump: u8,
 }
@@ -157,17 +161,25 @@ pub fn receive_message<'info>(
         }
     }
 
+    let finality_threshold_executed = message.finality_threshold_executed()?;
+
     let params = HandleReceiveMessageParams {
         remote_domain: source_domain,
         sender,
+        finality_threshold_executed,
         message_body: message.message_body().to_vec(),
         authority_bump,
     };
 
+    let handler_name = if finality_threshold_executed < FINALITY_THRESHOLD_FINALIZED {
+        "global:handle_receive_unfinalized_message"
+    } else {
+        "global:handle_receive_finalized_message"
+    };
+
     let mut data = Vec::with_capacity(52 + message.message_body().len());
     data.extend_from_slice(
-        &anchor_lang::solana_program::hash::hash("global:handle_receive_message".as_bytes())
-            .to_bytes()[..8],
+        &anchor_lang::solana_program::hash::hash(handler_name.as_bytes()).to_bytes()[..8],
     );
     data.extend_from_slice(&params.try_to_vec()?);
 
@@ -191,6 +203,7 @@ pub fn receive_message<'info>(
         source_domain,
         nonce,
         sender,
+        finality_threshold_executed,
         message_body: message.message_body().to_vec()
     });
 
