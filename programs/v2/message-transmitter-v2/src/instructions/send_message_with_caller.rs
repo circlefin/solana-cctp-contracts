@@ -33,6 +33,7 @@ use {
 pub struct SendMessageWithCallerParams {
     pub destination_domain: u32,
     pub recipient: Pubkey,
+    pub min_finality_threshold: u32,
     pub message_body: Vec<u8>,
     pub destination_caller: Pubkey,
 }
@@ -41,7 +42,7 @@ pub struct SendMessageWithCallerParams {
 pub fn send_message_with_caller(
     ctx: Context<SendMessageContext>,
     params: &SendMessageWithCallerParams,
-) -> Result<u64> {
+) -> Result<()> {
     require_keys_neq!(
         params.destination_caller,
         Pubkey::default(),
@@ -57,7 +58,7 @@ pub fn send_message_with_caller(
         &params.recipient,
         &params.destination_caller,
         &ctx.accounts.sender_program.key(),
-        None,
+        params.min_finality_threshold,
         &params.message_body,
     )
 }

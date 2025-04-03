@@ -170,7 +170,9 @@ export class TestClient {
     burnToken: PublicKey,
     mintRecipient: PublicKey,
     depositor: PublicKey,
-    amount: bigint
+    amount: bigint,
+    maxFee: bigint,
+    hookData: Buffer
   ) => {
     return Buffer.concat([
       new BN(burnVersion).toArrayLike(Buffer, "be", 4),
@@ -180,6 +182,11 @@ export class TestClient {
       new BN(0).toArrayLike(Buffer, "be", 24),
       new BN(amount).toArrayLike(Buffer, "be", 8),
       depositor.toBytes(),
+      new BN(0).toArrayLike(Buffer, "be", 24),
+      new BN(maxFee).toArrayLike(Buffer, "be", 8),
+      new BN(0).toArrayLike(Buffer, "be", 32),
+      new BN(0).toArrayLike(Buffer, "be", 32),
+      hookData,
     ]);
   };
 
@@ -187,32 +194,40 @@ export class TestClient {
     version: number,
     sourceDomain: number,
     destinationDomain: number,
-    nonce: number,
+    nonce: Buffer,
     sender: PublicKey,
     recipient: PublicKey,
     destinationCaller: PublicKey,
+    minFinalityThreshold: number,
     // The below params are burn_message specific.
     burnVersion: number,
     burnToken: PublicKey,
     mintRecipient: PublicKey,
     depositor: PublicKey,
-    amount: bigint
+    amount: bigint,
+    maxFee: bigint,
+    hookData: Buffer
   ) => {
     const burnMessageBuffer = this.createBurnMessageBody(
       burnVersion,
       burnToken,
       mintRecipient,
       depositor,
-      amount
+      amount,
+      maxFee,
+      hookData
     );
+
     return Buffer.concat([
       new BN(version).toArrayLike(Buffer, "be", 4),
       new BN(sourceDomain).toArrayLike(Buffer, "be", 4),
       new BN(destinationDomain).toArrayLike(Buffer, "be", 4),
-      new BN(nonce).toArrayLike(Buffer, "be", 8),
+      nonce,
       sender.toBytes(),
       recipient.toBytes(),
       destinationCaller.toBytes(),
+      new BN(minFinalityThreshold).toArrayLike(Buffer, "be", 4),
+      new BN(0).toArrayLike(Buffer, "be", 4),
       burnMessageBuffer,
     ]);
   };
@@ -520,6 +535,9 @@ export class TestClient {
     destinationDomain: number,
     mintRecipient: PublicKey,
     messageSentEventAccountKeypair: Keypair,
+    minFinalityThreshold: number,
+    maxFee: BN,
+    hookData: Buffer,
     owner: PublicKey = this.user.publicKey
   ) => {
     const remoteTokenMessenger = this.findProgramAddress(
@@ -532,6 +550,9 @@ export class TestClient {
         amount,
         destinationDomain,
         mintRecipient,
+        maxFee,
+        minFinalityThreshold,
+        hookData,
       })
       .accounts({
         owner,
@@ -560,6 +581,9 @@ export class TestClient {
     mintRecipient: PublicKey,
     destinationCaller: PublicKey,
     messageSentEventAccountKeypair: Keypair,
+    minFinalityThreshold: number,
+    maxFee: BN,
+    hookData: Buffer,
     owner: PublicKey = this.user.publicKey
   ) => {
     const remoteTokenMessenger = this.findProgramAddress(
@@ -572,6 +596,9 @@ export class TestClient {
         destinationDomain,
         mintRecipient,
         destinationCaller,
+        maxFee,
+        minFinalityThreshold,
+        hookData,
       })
       .accounts({
         owner,
@@ -588,37 +615,6 @@ export class TestClient {
         messageTransmitterProgram: this.messageTransmitterProgram.programId,
         tokenMessengerMinterProgram: this.program.programId,
         tokenProgram: spl.TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([this.user, messageSentEventAccountKeypair])
-      .rpc();
-  };
-
-  replaceDepositForBurn = async (
-    originalMessage: number[],
-    originalAttestation: number[],
-    newDestinationCaller: PublicKey,
-    newMintRecipient: PublicKey,
-    messageSentEventAccountKeypair: Keypair
-  ) => {
-    return await this.program.methods
-      .replaceDepositForBurn({
-        originalMessage: Buffer.from(originalMessage),
-        originalAttestation: Buffer.from(originalAttestation),
-        newDestinationCaller,
-        newMintRecipient,
-      })
-      .accounts({
-        owner: this.user.publicKey,
-        eventRentPayer: this.user.publicKey,
-        senderAuthorityPda: this.authorityPda.publicKey,
-        messageTransmitter: this.messageTransmitter.publicKey,
-        tokenMessenger: this.tokenMessenger.publicKey,
-        messageSentEventData: messageSentEventAccountKeypair.publicKey,
-        messageTransmitterEventAuthority:
-          this.messageTransmitterEventAuthority.publicKey,
-        messageTransmitterProgram: this.messageTransmitterProgram.programId,
-        tokenMessengerMinterProgram: this.program.programId,
         systemProgram: SystemProgram.programId,
       })
       .signers([this.user, messageSentEventAccountKeypair])
@@ -660,11 +656,15 @@ export class TestClient {
   receiveMessage = async (
     remoteDomain: number,
     remoteToken: PublicKey,
-    nonce: bigint,
+    nonce: Buffer,
     message: number[],
     attestation: number[]
   ) => {
-    const usedNonces = await this.getNoncePDA(nonce, remoteDomain);
+    const usedNonce = this.findProgramAddress(
+      "used_nonce",
+      [nonce],
+      this.messageTransmitterProgram.programId
+    ).publicKey;
 
     const authorityPda = this.findProgramAddress(
       "message_transmitter_authority",
@@ -744,7 +744,7 @@ export class TestClient {
         caller: this.provider.wallet.publicKey,
         authorityPda,
         messageTransmitter: this.messageTransmitter.publicKey,
-        usedNonces,
+        usedNonce,
         receiver: this.program.programId,
         systemProgram: SystemProgram.programId,
       })
@@ -770,30 +770,15 @@ export class TestClient {
       .rpc();
   };
 
-  getNoncePDA = async (nonce: bigint, sourceDomain: number) => {
-    return await this.messageTransmitterProgram.methods
-      .getNoncePda({
-        nonce: new BN(nonce),
-        sourceDomain,
-      })
-      .accounts({
-        messageTransmitter: this.messageTransmitter.publicKey,
-      })
-      .view();
-  };
+  isNonceUsed = async (nonce: Buffer) => {
+    const usedNonce = this.findProgramAddress(
+      "used_nonce",
+      [nonce],
+      this.messageTransmitterProgram.programId
+    ).publicKey;
 
-  isNonceUsed = async (nonce: bigint, sourceDomain: number) => {
-    const usedNonces = await this.getNoncePDA(nonce, sourceDomain);
-
-    return await this.messageTransmitterProgram.methods
-      .isNonceUsed({
-        nonce: new BN(nonce),
-      })
-      .accounts({
-        usedNonces,
-      })
-      .view();
-  };
+    return await this.messageTransmitterProgram.methods.isNonceUsed().accounts({usedNonce}).view()
+  }
 
   burnTokenCustody = async (amount: BN) => {
     return await this.program.methods

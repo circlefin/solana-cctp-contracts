@@ -34,6 +34,9 @@ pub struct DepositForBurnWithCallerParams {
     pub amount: u64,
     pub destination_domain: u32,
     pub mint_recipient: Pubkey,
+    pub max_fee: u64,
+    pub min_finality_threshold: u32,
+    pub hook_data: Vec<u8>,
     pub destination_caller: Pubkey,
 }
 
@@ -41,7 +44,7 @@ pub struct DepositForBurnWithCallerParams {
 pub fn deposit_for_burn_with_caller(
     ctx: Context<DepositForBurnContext>,
     params: &DepositForBurnWithCallerParams,
-) -> Result<u64> {
+) -> Result<()> {
     require_keys_neq!(
         params.destination_caller,
         Pubkey::default(),
@@ -54,5 +57,8 @@ pub fn deposit_for_burn_with_caller(
         params.destination_domain,
         &params.mint_recipient,
         &params.destination_caller,
+        params.max_fee,
+        params.min_finality_threshold,
+        &params.hook_data,
     )
 }

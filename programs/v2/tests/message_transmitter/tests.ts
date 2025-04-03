@@ -254,18 +254,4 @@ describe("message_transmitter_v2", () => {
     await tc.setSignatureThreshold(2);
     await tc.updateAttesterManager(tc.provider.wallet.publicKey);
   });
-
-  it("used_nonces PDA seeds do not cause collision", async () => {
-    // Generate a bunch of used nonces collisions
-    const collisions = generateUsedNoncesCollisions(500);
-    expect(collisions.length).to.equal(500);
-
-    // Make sure none of them collide
-    await Promise.all(collisions.map(async ({nonce1, nonce2, domain1, domain2}) => {
-      const pda1 = await tc.getNoncePda(nonce1, domain1);
-      const pda2 = await tc.getNoncePda(nonce2, domain2);
-
-      expect(pda1.toString()).not.to.equal(pda2.toString());
-    }));
-  })
 });

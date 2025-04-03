@@ -34,7 +34,6 @@ pub struct OwnershipTransferred {
 
 #[event]
 pub struct DepositForBurn {
-    pub nonce: u64,
     pub burn_token: Pubkey,
     pub amount: u64,
     pub depositor: Pubkey,

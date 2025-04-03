@@ -36,11 +36,16 @@ impl<'a> Message<'a> {
     const VERSION_INDEX: usize = 0;
     const SOURCE_DOMAIN_INDEX: usize = 4;
     const DESTINATION_DOMAIN_INDEX: usize = 8;
-    const NONCE_INDEX: usize = 12;
-    const SENDER_INDEX: usize = 20;
-    const RECIPIENT_INDEX: usize = 52;
-    const DESTINATION_CALLER_INDEX: usize = 84;
-    const MESSAGE_BODY_INDEX: usize = 116;
+    pub const NONCE_INDEX: usize = 12;
+    pub const SENDER_INDEX: usize = 44;
+    const RECIPIENT_INDEX: usize = 76;
+    const DESTINATION_CALLER_INDEX: usize = 108;
+    const MIN_FINALITY_THRESHOLD_INDEX: usize = 140;
+    const FINALITY_THRESHOLD_EXECUTED_INDEX: usize = 144;
+    const MESSAGE_BODY_INDEX: usize = 148;
+
+    const EMPTY_NONCE: [u8; 32] = [0; 32];
+    const EMPTY_FINALITY_THRESHOLD_EXECUTED: u32 = 0;
 
     /// Validates source array size and returns a new message
     pub fn new(expected_version: u32, message_bytes: &'a [u8]) -> Result<Self> {
@@ -68,12 +73,12 @@ impl<'a> Message<'a> {
     /// Serializes given fields into a message
     pub fn format_message(
         version: u32,
-        local_domain: u32,
+        source_domain: u32,
         destination_domain: u32,
-        nonce: u64,
         sender: &Pubkey,
         recipient: &Pubkey,
         destination_caller: &Pubkey,
+        min_finality_threshold: u32,
         message_body: &Vec<u8>,
     ) -> Result<Vec<u8>> {
         let mut output = vec![0; Message::serialized_len(message_body.len())?];
@@ -81,15 +86,20 @@ impl<'a> Message<'a> {
         output[Self::VERSION_INDEX..Self::SOURCE_DOMAIN_INDEX]
             .copy_from_slice(&version.to_be_bytes());
         output[Self::SOURCE_DOMAIN_INDEX..Self::DESTINATION_DOMAIN_INDEX]
-            .copy_from_slice(&local_domain.to_be_bytes());
+            .copy_from_slice(&source_domain.to_be_bytes());
         output[Self::DESTINATION_DOMAIN_INDEX..Self::NONCE_INDEX]
             .copy_from_slice(&destination_domain.to_be_bytes());
-        output[Self::NONCE_INDEX..Self::SENDER_INDEX].copy_from_slice(&nonce.to_be_bytes());
+        output[Self::NONCE_INDEX..Self::SENDER_INDEX].copy_from_slice(&Self::EMPTY_NONCE);
         output[Self::SENDER_INDEX..Self::RECIPIENT_INDEX].copy_from_slice(sender.as_ref());
         output[Self::RECIPIENT_INDEX..Self::DESTINATION_CALLER_INDEX]
             .copy_from_slice(recipient.as_ref());
-        output[Self::DESTINATION_CALLER_INDEX..Self::MESSAGE_BODY_INDEX]
+        output[Self::DESTINATION_CALLER_INDEX..Self::MIN_FINALITY_THRESHOLD_INDEX]
             .copy_from_slice(destination_caller.as_ref());
+        output[Self::MIN_FINALITY_THRESHOLD_INDEX..Self::FINALITY_THRESHOLD_EXECUTED_INDEX]
+            .copy_from_slice(&min_finality_threshold.to_be_bytes());
+        output[Self::FINALITY_THRESHOLD_EXECUTED_INDEX..Self::MESSAGE_BODY_INDEX]
+            .copy_from_slice(&Self::EMPTY_FINALITY_THRESHOLD_EXECUTED.to_be_bytes());
+
         if !message_body.is_empty() {
             output[Self::MESSAGE_BODY_INDEX..].copy_from_slice(message_body.as_slice());
         }
@@ -107,6 +117,11 @@ impl<'a> Message<'a> {
     /// Returns version field
     pub fn version(&self) -> Result<u32> {
         self.read_integer::<u32>(Self::VERSION_INDEX)
+    }
+
+    /// Returns nonce field
+    pub fn nonce(&self) -> Result<[u8; 32]> {
+        self.read_bytes::<32>(Self::NONCE_INDEX)
     }
 
     /// Returns sender field
@@ -134,9 +149,14 @@ impl<'a> Message<'a> {
         self.read_pubkey(Self::DESTINATION_CALLER_INDEX)
     }
 
-    /// Returns nonce field
-    pub fn nonce(&self) -> Result<u64> {
-        self.read_integer::<u64>(Self::NONCE_INDEX)
+    /// Returns min_finality_threshold field
+    pub fn min_finality_threshold(&self) -> Result<u32> {
+        self.read_integer::<u32>(Self::MIN_FINALITY_THRESHOLD_INDEX)
+    }
+
+    /// Returns finality_threshold_executed field
+    pub fn finality_threshold_executed(&self) -> Result<u32> {
+        self.read_integer::<u32>(Self::FINALITY_THRESHOLD_EXECUTED_INDEX)
     }
 
     /// Returns message_body field
@@ -166,5 +186,12 @@ impl<'a> Message<'a> {
             &self.data[index..utils::checked_add(index, std::mem::size_of::<Pubkey>())?],
         )
         .map_err(|_| MessageTransmitterError::MalformedMessage)?)
+    }
+
+    /// Reads bytes field at the given offset
+    fn read_bytes<const N: usize>(&self, index: usize) -> Result<[u8; N]> {
+        self.data[index..utils::checked_add(index, N)?]
+            .try_into()
+            .map_err(|_| error!(MessageTransmitterError::MalformedMessage))
     }
 }

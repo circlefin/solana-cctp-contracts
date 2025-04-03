@@ -39,9 +39,12 @@ describe("token_messenger_minter_v2", () => {
   let destinationCaller;
   let message;
   const messageVersion = 0;
-  let messageNonce = BigInt(1098);
+  let messageNonce = Buffer.from("a87ca1348591db5efaafe71d20f08bc97f4ca01c2dec23a94736a0bb9f21c3f0", "hex");
   const messageAmount = BigInt(200000000);
+  const maxFee = BigInt(200000);
+  const minFinalityThreshold = 0;
   const messageSourceDomain = 123;
+  const hookData = Buffer.from("");
   let sender;
   let recipient;
   let depositor;
@@ -80,11 +83,14 @@ describe("token_messenger_minter_v2", () => {
       sender,
       recipient,
       destinationCaller,
+      minFinalityThreshold,
       messageBodyVersion,
       remoteToken,
       mintRecipient,
       depositor,
-      messageAmount
+      messageAmount,
+      maxFee,
+      hookData,
     );
 
     const err = await tc.ensureFails(
@@ -483,7 +489,7 @@ describe("token_messenger_minter_v2", () => {
   });
 
   it("depositForBurn", async () => {
-    expect(await tc.isNonceUsed(BigInt(1), remoteDomain)).to.be.false;
+    expect(await tc.isNonceUsed(messageNonce)).to.be.false;
 
     // MessageSent event data is stored in a stand-alone account.
     // A random Keypair needs to be provided so the account can be initialized by the contract.
@@ -494,7 +500,10 @@ describe("token_messenger_minter_v2", () => {
       new BN(20),
       remoteDomain,
       mintRecipient,
-      messageSentEventAccountKeypair
+      messageSentEventAccountKeypair,
+      minFinalityThreshold,
+      new BN(1),
+      hookData
     );
 
     const events = await tc.readEvents(signature, [
@@ -508,7 +517,6 @@ describe("token_messenger_minter_v2", () => {
       "depositForBurn"
     );
     const depositForBurnExpected = {
-      nonce: "1",
       burnToken: tc.localTokenMint.publicKey,
       amount: "20",
       depositor,
@@ -525,7 +533,7 @@ describe("token_messenger_minter_v2", () => {
       await tc.messageTransmitterProgram.account.messageSent.fetch(
         messageSentEventAccountKeypair.publicKey
       );
-    expect(messageSent.message.length).to.equal(248);
+    expect(messageSent.message.length).to.equal(376);
 
     const accountInfo = await tc.program.provider.connection.getAccountInfo(
       messageSentEventAccountKeypair.publicKey
@@ -533,9 +541,9 @@ describe("token_messenger_minter_v2", () => {
     expect(JSON.stringify(accountInfo.owner)).to.equal(
       JSON.stringify(tc.messageTransmitterProgram.programId)
     );
-    expect(accountInfo.data.length).to.equal(292);
+    expect(accountInfo.data.length).to.equal(420);
 
-    expect(await tc.isNonceUsed(BigInt(1), remoteDomain)).to.be.false;
+    expect(await tc.isNonceUsed(messageNonce)).to.be.false;
   });
 
   it("depositForBurnWithCaller", async () => {
@@ -546,7 +554,10 @@ describe("token_messenger_minter_v2", () => {
       remoteDomain,
       mintRecipient,
       destinationCaller,
-      messageSentEventAccountKeypair
+      messageSentEventAccountKeypair,
+      minFinalityThreshold,
+      new BN(1),
+      hookData
     );
 
     const events = await tc.readEvents(signature, [
@@ -560,7 +571,6 @@ describe("token_messenger_minter_v2", () => {
       "depositForBurn"
     );
     const depositForBurnExpected = {
-      nonce: "2",
       burnToken: tc.localTokenMint.publicKey,
       amount: "20",
       depositor,
@@ -577,49 +587,7 @@ describe("token_messenger_minter_v2", () => {
       await tc.messageTransmitterProgram.account.messageSent.fetch(
         messageSentEventAccountKeypair.publicKey
       );
-    expect(messageSent.message.length).to.equal(248);
-  });
-
-  it("replaceDepositForBurn", async () => {
-    const messageSentEventAccountKeypair = Keypair.generate();
-
-    const signature = await tc.replaceDepositForBurn(
-      message,
-      tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2]),
-      destinationCaller,
-      mintRecipient,
-      messageSentEventAccountKeypair
-    );
-
-    const events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
-
-    const depositForBurn = tc.getEvent(
-      events,
-      tc.program.programId,
-      "depositForBurn"
-    );
-    const depositForBurnExpected = {
-      nonce: messageNonce.toString(),
-      burnToken: remoteToken,
-      amount: messageAmount.toString(),
-      depositor,
-      mintRecipient,
-      destinationDomain: remoteDomain,
-      destinationTokenMessenger: sender,
-      destinationCaller,
-    };
-    expect(JSON.stringify(depositForBurn)).to.equal(
-      JSON.stringify(depositForBurnExpected)
-    );
-
-    const messageSent =
-      await tc.messageTransmitterProgram.account.messageSent.fetch(
-        messageSentEventAccountKeypair.publicKey
-      );
-    expect(messageSent.message.length).to.equal(248);
+    expect(messageSent.message.length).to.equal(376);
   });
 
   it("receiveMessage", async () => {
@@ -642,6 +610,17 @@ describe("token_messenger_minter_v2", () => {
       tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2])
     );
 
+    // Receiving the same message should fail as nonce is already used
+    await tc.ensureFails(
+      tc.receiveMessage(
+        remoteDomain,
+        remoteToken,
+        messageNonce,
+        message,
+        tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2])
+      )
+    )
+
     const events = await tc.readEvents(signature, [
       tc.program,
       tc.messageTransmitterProgram,
@@ -656,14 +635,16 @@ describe("token_messenger_minter_v2", () => {
     const messageReceivedExpected = {
       caller: tc.provider.wallet.publicKey,
       sourceDomain: messageSourceDomain,
-      nonce: messageNonce.toString(),
+      nonce: Array.from(messageNonce),
       sender,
       messageBody: tc.createBurnMessageBody(
         messageBodyVersion,
         remoteToken,
         mintRecipient,
         depositor,
-        messageAmount
+        messageAmount,
+        maxFee,
+        hookData
       ),
     };
     expect(JSON.stringify(messageReceived)).to.equal(
@@ -720,8 +701,8 @@ describe("token_messenger_minter_v2", () => {
     await tc.disableAttester(attester2);
 
     // deposit for burn
-    expect(await tc.isNonceUsed(BigInt(3), remoteDomain)).to.be.false;
-    messageNonce = BigInt(3);
+    const messageNonce = Buffer.from("1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8", "hex");
+    expect(await tc.isNonceUsed(messageNonce)).to.be.false;
     const messageAmount = 20;
     const messageSentEventAccountKeypair = Keypair.generate();
 
@@ -730,7 +711,10 @@ describe("token_messenger_minter_v2", () => {
       remoteDomain,
       mintRecipient,
       destinationCaller,
-      messageSentEventAccountKeypair
+      messageSentEventAccountKeypair,
+      minFinalityThreshold,
+      new BN(1),
+      hookData
     );
 
     let events = await tc.readEvents(signature, [
@@ -745,7 +729,6 @@ describe("token_messenger_minter_v2", () => {
       "depositForBurn"
     );
     const depositForBurnExpected = {
-      nonce: messageNonce.toString(),
       burnToken: tc.localTokenMint.publicKey,
       amount: messageAmount.toString(),
       depositor,
@@ -762,8 +745,11 @@ describe("token_messenger_minter_v2", () => {
       await tc.messageTransmitterProgram.account.messageSent.fetch(
         messageSentEventAccountKeypair.publicKey
       );
-    expect(messageSent.message.length).to.equal(248);
+
+    expect(messageSent.message.length).to.equal(376);
     const messageBytes = messageSent.message;
+    // Replace 32 bytes in messageBytes starting at index 12 with messageNonce
+    messageNonce.copy(messageBytes, 12, 0, 32);
 
     // sign the message
     const messageHash = ethutil.keccak256(messageBytes);
@@ -835,7 +821,7 @@ describe("token_messenger_minter_v2", () => {
     const messageReceivedExpected = {
       caller: tc.provider.wallet.publicKey,
       sourceDomain: remoteDomain,
-      nonce: messageNonce.toString(),
+      nonce: Array.from(messageNonce),
       sender,
       messageBody: messageReceived.messageBody,
     };
@@ -878,7 +864,7 @@ describe("token_messenger_minter_v2", () => {
     );
 
     // check if nonce flagged as used
-    expect(await tc.isNonceUsed(BigInt(3), remoteDomain)).to.be.true;
+    expect(await tc.isNonceUsed(messageNonce)).to.be.true;
 
     // reclaim rent SOL
     const initialBalance = await tc.provider.connection.getBalance(

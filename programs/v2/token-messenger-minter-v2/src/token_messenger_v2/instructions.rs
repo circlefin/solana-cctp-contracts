@@ -26,7 +26,6 @@ pub mod deposit_for_burn_with_caller;
 pub mod handle_receive_message;
 pub mod initialize;
 pub mod remove_remote_token_messenger;
-pub mod replace_deposit_for_burn;
 pub mod transfer_ownership;
 pub mod undenylist_account;
 pub mod update_denylister;
@@ -34,6 +33,6 @@ pub mod update_denylister;
 pub use {
     accept_ownership::*, add_remote_token_messenger::*, denylist_account::*, deposit_for_burn::*,
     deposit_for_burn_with_caller::*, handle_receive_message::*, initialize::*,
-    remove_remote_token_messenger::*, replace_deposit_for_burn::*, transfer_ownership::*,
-    undenylist_account::*, update_denylister::*,
+    remove_remote_token_messenger::*, transfer_ownership::*, undenylist_account::*,
+    update_denylister::*,
 };

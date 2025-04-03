@@ -48,13 +48,8 @@ pub struct MessageTransmitter {
 
 #[account]
 #[derive(Debug, InitSpace)]
-/// UsedNonces account holds an array of bits that indicate which nonces were already used
-/// so they can't be resused to receive new messages. Array starts with the first_nonce and
-/// holds flags for UsedNonces::MAX_NONCES. Nonces are recorded separately for each remote_domain.
-pub struct UsedNonces {
-    pub remote_domain: u32,
-    pub first_nonce: u64,
-    used_nonces: [u64; 100], // length = MAX_NONCES / 64 + if MAX_NONCES % 64 != 0 { 1 } else { 0 }
+pub struct UsedNonce {
+    pub is_used: bool,
 }
 
 impl MessageTransmitter {
@@ -186,63 +181,5 @@ impl MessageTransmitter {
         address[0..12].iter_mut().for_each(|x| *x = 0);
 
         Ok(Pubkey::new_from_array(address))
-    }
-}
-
-impl UsedNonces {
-    pub const MAX_NONCES: usize = 6400;
-
-    /// Returns the first nonce in the UsedNonces account corresponding to the given nonce.
-    /// To minimize on-chain space use, used nonces are stored in a bitset, i.e. 0/1 flags
-    /// indicating if the nonce was already used. `first_nonce` represents the very first
-    /// nonce in the set. For example, given the first_nonce = 100 and used_nonces set = 0110,
-    /// we can tell that nonces 101 and 102 are used, while 100 and 103 are not. Bitset is
-    /// implemented as a fixed-size array of 64 bit values that are custom indexed.
-    pub fn first_nonce(nonce: u64) -> Result<u64> {
-        if nonce == 0 {
-            return err!(MessageTransmitterError::InvalidNonce);
-        }
-        utils::checked_add(
-            utils::checked_mul(
-                utils::checked_div(utils::checked_sub(nonce, 1)?, Self::MAX_NONCES as u64)?,
-                Self::MAX_NONCES as u64,
-            )?,
-            1,
-        )
-    }
-
-    /// Marks the nonce as used
-    pub fn use_nonce(&mut self, nonce: u64) -> Result<()> {
-        let (entry, bit) = self.get_entry_bit(nonce)?;
-
-        require!(
-            self.used_nonces[entry] & bit == 0,
-            MessageTransmitterError::NonceAlreadyUsed
-        );
-
-        self.used_nonces[entry] |= bit;
-
-        Ok(())
-    }
-
-    /// Checks if nonce is used
-    pub fn is_nonce_used(&self, nonce: u64) -> Result<bool> {
-        let (entry, bit) = self.get_entry_bit(nonce)?;
-
-        Ok(self.used_nonces[entry] & bit != 0)
-    }
-
-    fn get_entry_bit(&self, nonce: u64) -> Result<(usize, u64)> {
-        require!(
-            nonce >= self.first_nonce
-                && nonce < utils::checked_add(self.first_nonce, Self::MAX_NONCES as u64)?,
-            MessageTransmitterError::InvalidNonce
-        );
-
-        let position = utils::checked_sub(nonce, self.first_nonce)? as usize;
-        let entry = utils::checked_div(position, 64)?;
-        let bit = 1 << (position as u64 % 64);
-
-        Ok((entry, bit))
     }
 }

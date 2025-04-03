@@ -115,19 +115,25 @@ pub struct DepositForBurnParams {
     pub amount: u64,
     pub destination_domain: u32,
     pub mint_recipient: Pubkey,
+    pub max_fee: u64,
+    pub min_finality_threshold: u32,
+    pub hook_data: Vec<u8>,
 }
 
 // Instruction handler
 pub fn deposit_for_burn(
     ctx: Context<DepositForBurnContext>,
     params: &DepositForBurnParams,
-) -> Result<u64> {
+) -> Result<()> {
     deposit_for_burn_helper(
         ctx,
         params.amount,
         params.destination_domain,
         &params.mint_recipient,
         &Pubkey::default(),
+        params.max_fee,
+        params.min_finality_threshold,
+        &params.hook_data,
     )
 }
 
@@ -138,7 +144,10 @@ pub fn deposit_for_burn_helper(
     destination_domain: u32,
     mint_recipient: &Pubkey,
     destination_caller: &Pubkey,
-) -> Result<u64> {
+    max_fee: u64,
+    min_finality_threshold: u32,
+    hook_data: &Vec<u8>,
+) -> Result<()> {
     require_gt!(amount, 0, TokenMessengerError::InvalidAmount);
 
     require_keys_neq!(
@@ -164,6 +173,8 @@ pub fn deposit_for_burn_helper(
         mint_recipient,
         amount,
         &ctx.accounts.owner.key(),
+        max_fee,
+        hook_data,
     )?;
 
     // CPI into Message Transmitter
@@ -191,26 +202,27 @@ pub fn deposit_for_burn_helper(
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, authority_seeds);
 
     // call SendMessage or SendMessageWithCaller on MessageTransmitter and get the message nonce
-    let nonce = if destination_caller == &Pubkey::default() {
+    if destination_caller == &Pubkey::default() {
         let cpi_params = SendMessageParams {
             destination_domain,
             recipient: ctx.accounts.remote_token_messenger.token_messenger,
+            min_finality_threshold,
             message_body: burn_message,
         };
-        message_transmitter_v2::cpi::send_message(cpi_ctx, cpi_params)?.get()
+        message_transmitter_v2::cpi::send_message(cpi_ctx, cpi_params)?
     } else {
         let cpi_params = SendMessageWithCallerParams {
             destination_domain,
             recipient: ctx.accounts.remote_token_messenger.token_messenger,
             destination_caller: *destination_caller,
+            min_finality_threshold,
             message_body: burn_message,
         };
-        message_transmitter_v2::cpi::send_message_with_caller(cpi_ctx, cpi_params)?.get()
+        message_transmitter_v2::cpi::send_message_with_caller(cpi_ctx, cpi_params)?
     };
 
     // emit DepositForBurn event
     emit_cpi!(DepositForBurn {
-        nonce,
         burn_token: ctx.accounts.burn_token_mint.key(),
         amount,
         depositor: ctx.accounts.owner.key(),
@@ -220,5 +232,5 @@ pub fn deposit_for_burn_helper(
         destination_caller: *destination_caller,
     });
 
-    Ok(nonce)
+    Ok(())
 }

@@ -17,40 +17,33 @@
  */
 
 //! IsNonceUsed instruction handler
-
-use {crate::state::UsedNonces, anchor_lang::prelude::*};
+use {crate::state::UsedNonce, anchor_lang::prelude::*};
 
 // Instruction accounts
 #[derive(Accounts)]
 pub struct IsNonceUsedContext<'info> {
-    /// CHECK: Used nonces state
+    /// CHECK: Used nonce state
     /// Account will be explicitly loaded to avoid error when it's not initialized
     #[account()]
-    pub used_nonces: UncheckedAccount<'info>,
-}
-
-// Instruction parameters
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct IsNonceUsedParams {
-    pub nonce: u64,
+    pub used_nonce: UncheckedAccount<'info>,
 }
 
 // Instruction handler
-pub fn is_nonce_used(ctx: Context<IsNonceUsedContext>, params: &IsNonceUsedParams) -> Result<bool> {
+pub fn is_nonce_used(ctx: Context<IsNonceUsedContext>) -> Result<bool> {
     // Check if the account data is empty
-    if ctx.accounts.used_nonces.data_is_empty() {
+    if ctx.accounts.used_nonce.data_is_empty() {
         return Ok(false);
     }
 
     // Check that the account is owned by ours program
-    require_keys_eq!(*ctx.accounts.used_nonces.owner, crate::ID);
+    require_keys_eq!(*ctx.accounts.used_nonce.owner, crate::ID);
 
-    // Access the state of UsedNonces from the account
-    let mut data: &[u8] = &ctx.accounts.used_nonces.data.borrow();
+    // Access the state of UsedNonce from the account
+    let mut data: &[u8] = &ctx.accounts.used_nonce.data.borrow();
 
-    // Try to convert the bytes into the UsedNonces struct
-    let used_nonces = UsedNonces::try_deserialize(&mut data)?;
+    // Try to convert the bytes into the UsedNonce struct
+    let used_nonce = UsedNonce::try_deserialize(&mut data)?;
 
     // Check if nonce is used
-    Ok(used_nonces.is_nonce_used(params.nonce)?)
+    Ok(used_nonce.is_used)
 }

@@ -231,16 +231,4 @@ export class TestClient {
       .signers([this.attesterManager])
       .rpc();
   };
-
-  getNoncePda = async (nonce: number, remoteDomain: number): Promise<PublicKey> => {
-    return this.program.methods
-      .getNoncePda({
-        nonce: new anchor.BN(nonce), 
-        sourceDomain: remoteDomain
-      })
-      .accounts({
-        messageTransmitter: this.messageTransmitter.publicKey
-      })
-      .view();
-  }
 }

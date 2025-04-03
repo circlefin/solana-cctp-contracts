@@ -23,7 +23,7 @@ use {
         error::MessageTransmitterError,
         events::MessageReceived,
         message::Message,
-        state::{MessageTransmitter, UsedNonces},
+        state::{MessageTransmitter, UsedNonce},
         utils,
     },
     anchor_lang::prelude::*,
@@ -32,11 +32,6 @@ use {
         program,
     },
 };
-
-// Seed delimiter for used nonces PDA
-fn used_nonces_seed_delimiter(_: u32) -> &'static [u8] {
-    b"-"
-}
 
 // Instruction accounts
 #[event_cpi]
@@ -59,20 +54,18 @@ pub struct ReceiveMessageContext<'info> {
     #[account()]
     pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
 
-    // Used nonces state, see UsedNonces struct for more details
+    /// Each nonce is stored in a separate PDA
     #[account(
-        init_if_needed,
+        init,
         payer = payer,
-        space = utils::DISCRIMINATOR_SIZE + UsedNonces::INIT_SPACE,
+        space = utils::DISCRIMINATOR_SIZE + UsedNonce::INIT_SPACE,
         seeds = [
-            b"used_nonces", 
-            Message::new(message_transmitter.version, &params.message)?.source_domain()?.to_string().as_bytes(),
-            used_nonces_seed_delimiter(0u32),
-            UsedNonces::first_nonce(Message::new(message_transmitter.version, &params.message)?.nonce()?)?.to_string().as_bytes()
+            b"used_nonce",
+            &params.message[Message::NONCE_INDEX..Message::SENDER_INDEX] // Using message nonce as seed to create a unique nonce account.
         ],
         bump
     )]
-    pub used_nonces: Box<Account<'info, UsedNonces>>,
+    pub used_nonce: Box<Account<'info, UsedNonce>>,
 
     ///CHECK: Receiver program address, e.g. TokenMessenger
     #[account(
@@ -130,32 +123,10 @@ pub fn receive_message<'info>(
         );
     }
 
-    let used_nonces = ctx.accounts.used_nonces.as_mut();
     let source_domain = message.source_domain()?;
     let sender = message.sender()?;
     let nonce = message.nonce()?;
-    let first_nonce = UsedNonces::first_nonce(nonce)?;
-
-    if used_nonces.first_nonce == 0 {
-        // initialize new UsedNonces account
-        used_nonces.remote_domain = source_domain;
-        used_nonces.first_nonce = first_nonce;
-    } else {
-        // validate existing UsedNonces account
-        require_eq!(
-            used_nonces.remote_domain,
-            source_domain,
-            MessageTransmitterError::InvalidUsedNoncesAccount
-        );
-        require_eq!(
-            used_nonces.first_nonce,
-            first_nonce,
-            MessageTransmitterError::InvalidUsedNoncesAccount
-        );
-    }
-
-    // record message nonce as used
-    used_nonces.use_nonce(nonce)?;
+    ctx.accounts.used_nonce.is_used = true;
 
     // CPI into recipient
     let receiver_key = ctx.accounts.receiver.key();

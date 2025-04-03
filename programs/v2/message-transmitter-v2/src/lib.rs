@@ -110,25 +110,15 @@ pub mod message_transmitter_v2 {
         instructions::set_signature_threshold(ctx, &params)
     }
 
-    pub fn send_message(
-        ctx: Context<SendMessageContext>,
-        params: SendMessageParams,
-    ) -> Result<u64> {
+    pub fn send_message(ctx: Context<SendMessageContext>, params: SendMessageParams) -> Result<()> {
         instructions::send_message(ctx, &params)
     }
 
     pub fn send_message_with_caller(
         ctx: Context<SendMessageContext>,
         params: SendMessageWithCallerParams,
-    ) -> Result<u64> {
+    ) -> Result<()> {
         instructions::send_message_with_caller(ctx, &params)
-    }
-
-    pub fn replace_message(
-        ctx: Context<ReplaceMessageContext>,
-        params: ReplaceMessageParams,
-    ) -> Result<u64> {
-        instructions::replace_message(ctx, &params)
     }
 
     pub fn receive_message<'info>(
@@ -145,17 +135,9 @@ pub mod message_transmitter_v2 {
         instructions::reclaim_event_account(ctx, &params)
     }
 
-    pub fn get_nonce_pda(
-        ctx: Context<GetNoncePDAContext>,
-        params: GetNoncePDAParams,
-    ) -> Result<Pubkey> {
-        instructions::get_nonce_pda(ctx, &params)
-    }
-
     pub fn is_nonce_used(
-        ctx: Context<IsNonceUsedContext>,
-        params: IsNonceUsedParams,
+        ctx: Context<IsNonceUsedContext>
     ) -> Result<bool> {
-        instructions::is_nonce_used(ctx, &params)
+        instructions::is_nonce_used(ctx)
     }
 }

@@ -73,7 +73,7 @@ impl MessageSent {
 pub struct MessageReceived {
     pub caller: Pubkey,
     pub source_domain: u32,
-    pub nonce: u64,
+    pub nonce: [u8; 32],
     pub sender: Pubkey,
     pub message_body: Vec<u8>,
 }

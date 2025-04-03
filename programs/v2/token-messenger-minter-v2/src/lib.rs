@@ -94,22 +94,15 @@ pub mod token_messenger_minter_v2 {
     pub fn deposit_for_burn(
         ctx: Context<DepositForBurnContext>,
         params: DepositForBurnParams,
-    ) -> Result<u64> {
+    ) -> Result<()> {
         token_messenger_v2::instructions::deposit_for_burn(ctx, &params)
     }
 
     pub fn deposit_for_burn_with_caller(
         ctx: Context<DepositForBurnContext>,
         params: DepositForBurnWithCallerParams,
-    ) -> Result<u64> {
+    ) -> Result<()> {
         token_messenger_v2::instructions::deposit_for_burn_with_caller(ctx, &params)
-    }
-
-    pub fn replace_deposit_for_burn(
-        ctx: Context<ReplaceDepositForBurnContext>,
-        params: ReplaceDepositForBurnParams,
-    ) -> Result<u64> {
-        token_messenger_v2::instructions::replace_deposit_for_burn(ctx, &params)
     }
 
     pub fn handle_receive_message(

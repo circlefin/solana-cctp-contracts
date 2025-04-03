@@ -21,7 +21,7 @@
 use {
     crate::{
         error::MessageTransmitterError, events::MessageSent, message::Message,
-        state::MessageTransmitter, utils,
+        state::MessageTransmitter,
     },
     anchor_lang::prelude::*,
 };
@@ -67,11 +67,12 @@ pub struct SendMessageContext<'info> {
 pub struct SendMessageParams {
     pub destination_domain: u32,
     pub recipient: Pubkey,
+    pub min_finality_threshold: u32,
     pub message_body: Vec<u8>,
 }
 
 // Instruction handler
-pub fn send_message(ctx: Context<SendMessageContext>, params: &SendMessageParams) -> Result<u64> {
+pub fn send_message(ctx: Context<SendMessageContext>, params: &SendMessageParams) -> Result<()> {
     send_message_helper(
         ctx.accounts.message_transmitter.as_mut(),
         ctx.accounts.message_sent_event_data.as_mut(),
@@ -80,7 +81,7 @@ pub fn send_message(ctx: Context<SendMessageContext>, params: &SendMessageParams
         &params.recipient,
         &Pubkey::default(),
         &ctx.accounts.sender_program.key(),
-        None,
+        params.min_finality_threshold,
         &params.message_body,
     )
 }
@@ -95,9 +96,9 @@ pub fn send_message_helper(
     recipient: &Pubkey,
     destination_caller: &Pubkey,
     sender: &Pubkey,
-    nonce: Option<u64>,
+    min_finality_threshold: u32,
     message_body: &Vec<u8>,
-) -> Result<u64> {
+) -> Result<()> {
     require!(
         !message_transmitter.paused,
         MessageTransmitterError::ProgramPaused
@@ -115,28 +116,18 @@ pub fn send_message_helper(
         MessageTransmitterError::InvalidRecipient
     );
 
-    // increase next_available_nonce
-    let nonce = if let Some(nonce_value) = nonce {
-        nonce_value
-    } else {
-        let nonce_value = message_transmitter.next_available_nonce;
-        message_transmitter.next_available_nonce =
-            utils::checked_add(message_transmitter.next_available_nonce, 1)?;
-        nonce_value
-    };
-
     // format message and emit event
     message_sent_event_data.rent_payer = *event_rent_payer;
     message_sent_event_data.message = Message::format_message(
         message_transmitter.version,
         message_transmitter.local_domain,
         destination_domain,
-        nonce,
         sender,
         recipient,
         destination_caller,
+        min_finality_threshold,
         message_body,
     )?;
 
-    Ok(nonce)
+    Ok(())
 }
