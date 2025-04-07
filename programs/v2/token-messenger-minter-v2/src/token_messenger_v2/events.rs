@@ -51,6 +51,7 @@ pub struct MintAndWithdraw {
     pub mint_recipient: Pubkey,
     pub amount: u64,
     pub mint_token: Pubkey,
+    pub fee_collected: u64,
 }
 
 #[event]
@@ -79,4 +80,19 @@ pub struct Denylisted {
 #[event]
 pub struct UnDenylisted {
     pub account: Pubkey,
+}
+
+#[event]
+pub struct FeeRecipientSet {
+    pub new_fee_recipient: Pubkey,
+}
+
+#[event]
+pub struct MinFeeControllerSet {
+    pub new_min_fee_controller: Pubkey,
+}
+
+#[event]
+pub struct MinFeeSet {
+    pub new_min_fee: u32,
 }

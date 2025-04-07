@@ -48,8 +48,6 @@ pub enum TokenMessengerError {
     InvalidTokenPair,
     #[msg("Invalid token mint")]
     InvalidTokenMint,
-    #[msg("Invalid max fee")]
-    InvalidMaxFee,
     #[msg("Invalid hook data")]
     InvalidHookData,
     #[msg("Fee exceeds amount")]
@@ -68,4 +66,16 @@ pub enum TokenMessengerError {
     InvalidDenylister,
     #[msg("Account part of the Denylist")]
     DenylistedAccount,
+    #[msg("Invalid fee recipient")]
+    InvalidFeeRecipient,
+    #[msg("Invalid min fee controller")]
+    InvalidMinFeeController,
+    #[msg("Min fee too high")]
+    MinFeeTooHigh,
+    #[msg("Min fee amount overflow")]
+    MinFeeAmountOverflow,
+    #[msg("Insufficient max fee")]
+    InsufficientMaxFee,
+    #[msg("Max fee must be less than amount")]
+    MaxFeeMustBeLessThanAmount,
 }

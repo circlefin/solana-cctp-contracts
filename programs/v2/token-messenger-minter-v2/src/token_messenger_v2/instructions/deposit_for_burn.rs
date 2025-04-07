@@ -149,12 +149,24 @@ pub fn deposit_for_burn_helper(
     hook_data: &Vec<u8>,
 ) -> Result<()> {
     require_gt!(amount, 0, TokenMessengerError::InvalidAmount);
-    require_gt!(amount, max_fee, TokenMessengerError::InvalidMaxFee);
 
     require_keys_neq!(
         *mint_recipient,
         Pubkey::default(),
         TokenMessengerError::InvalidMintRecipient
+    );
+
+    require_gt!(
+        amount,
+        max_fee,
+        TokenMessengerError::MaxFeeMustBeLessThanAmount
+    );
+
+    let min_fee_amount = ctx.accounts.token_messenger.get_min_fee_amount(amount)?;
+    require_gte!(
+        max_fee,
+        min_fee_amount,
+        TokenMessengerError::InsufficientMaxFee
     );
 
     // burn user's tokens

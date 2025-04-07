@@ -21,6 +21,7 @@
 use {
     crate::{
         token_messenger_v2::{
+            self,
             burn_message::BurnMessage,
             error::TokenMessengerError,
             events::MintAndWithdraw,
@@ -88,6 +89,14 @@ pub struct HandleReceiveMessageContext<'info> {
         bump = token_pair.bump,
     )]
     pub token_pair: Box<Account<'info, TokenPair>>,
+
+    // Fee recipient's token account
+    #[account(
+        mut,
+        constraint = fee_recipient_token_account.mint == local_token.mint,
+        constraint = fee_recipient_token_account.owner == token_messenger.fee_recipient @ TokenMessengerError::InvalidFeeRecipient,
+    )]
+    pub fee_recipient_token_account: Box<Account<'info, TokenAccount>>,
 
     // Recipient's token account
     #[account(
@@ -177,24 +186,32 @@ pub(crate) fn handle_receive_message(
         TokenMessengerError::InvalidMintRecipient
     );
 
+    let amount_less_fees = amount - fee_executed;
+
     // transfer tokens
-    // TODO: mint amount - fee to recipient and fee to fee_account
-    // https://github.com/circlefin/evm-cctp-contracts/blob/6e7513cdb2bee6bb0cddf331fe972600fc5017c9/src/v2/BaseTokenMessenger.sol#L288
+    ctx.accounts.token_minter.transfer(
+        ctx.accounts.custody_token_account.to_account_info(),
+        ctx.accounts.fee_recipient_token_account.to_account_info(),
+        ctx.accounts.token_minter.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.local_token.as_mut(),
+        fee_executed,
+    )?;
     ctx.accounts.token_minter.transfer(
         ctx.accounts.custody_token_account.to_account_info(),
         ctx.accounts.recipient_token_account.to_account_info(),
         ctx.accounts.token_minter.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
         ctx.accounts.local_token.as_mut(),
-        amount,
+        amount_less_fees,
     )?;
 
     // Emit MintAndWithdraw event
-    // TODO: add fee_collected
     emit_cpi!(MintAndWithdraw {
         mint_recipient,
-        amount,
-        mint_token: ctx.accounts.local_token.mint
+        amount: amount_less_fees,
+        mint_token: ctx.accounts.local_token.mint,
+        fee_collected: fee_executed
     });
 
     Ok(())

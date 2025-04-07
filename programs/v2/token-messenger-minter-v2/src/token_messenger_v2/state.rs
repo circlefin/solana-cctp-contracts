@@ -20,6 +20,10 @@
 
 use anchor_lang::prelude::*;
 
+use crate::token_messenger_minter_v2::MIN_FEE_MULTIPLIER;
+
+use super::TokenMessengerError;
+
 #[account]
 #[derive(Debug, InitSpace)]
 pub struct TokenMessenger {
@@ -31,6 +35,9 @@ pub struct TokenMessenger {
     pub authority_bump: u8,
     #[max_len(0)]
     pub denylist: Vec<Pubkey>,
+    pub fee_recipient: Pubkey,
+    pub min_fee_controller: Pubkey,
+    pub min_fee: u32,
 }
 
 #[account]
@@ -42,12 +49,32 @@ pub struct RemoteTokenMessenger {
 
 impl TokenMessenger {
     pub fn validate(&self) -> bool {
-        self.owner != Pubkey::default() && self.local_message_transmitter != Pubkey::default()
+        self.owner != Pubkey::default()
+            && self.local_message_transmitter != Pubkey::default()
+            && self.denylister != Pubkey::default()
+            && self.fee_recipient != Pubkey::default()
+            && self.min_fee_controller != Pubkey::default()
     }
 
     /// Checks if the account is in the denylist
     pub fn is_account_denylisted(&self, account: &Pubkey) -> bool {
         self.denylist.contains(account)
+    }
+
+    /// Calculates the minimum fee amount for a given amount
+    pub fn get_min_fee_amount(&self, amount: u64) -> Result<u64> {
+        if self.min_fee == 0 {
+            return Ok(0);
+        }
+
+        require_gt!(amount, 1, TokenMessengerError::InvalidAmount);
+
+        let fee = amount
+            .checked_mul(self.min_fee as u64)
+            .ok_or(TokenMessengerError::MinFeeAmountOverflow)?
+            / MIN_FEE_MULTIPLIER;
+
+        Ok(fee.max(1))
     }
 }
 

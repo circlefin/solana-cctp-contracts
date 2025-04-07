@@ -39,6 +39,9 @@ declare_id!("CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe");
 pub mod token_messenger_minter_v2 {
     use super::*;
 
+    // Minimum fee multiplier to support 1/1000 basis point precision
+    pub const MIN_FEE_MULTIPLIER: u64 = 10_000_000;
+
     // token_messenger_v2 instructions
 
     pub fn initialize(ctx: Context<InitializeContext>, params: InitializeParams) -> Result<()> {

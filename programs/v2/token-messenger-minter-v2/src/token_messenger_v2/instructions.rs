@@ -27,6 +27,9 @@ pub mod handle_receive_finalized_message;
 pub mod handle_receive_unfinalized_message;
 pub mod initialize;
 pub mod remove_remote_token_messenger;
+pub mod set_fee_recipient;
+pub mod set_min_fee;
+pub mod set_min_fee_controller;
 pub mod transfer_ownership;
 pub mod undenylist_account;
 pub mod update_denylister;
@@ -35,5 +38,6 @@ pub use {
     accept_ownership::*, add_remote_token_messenger::*, denylist_account::*, deposit_for_burn::*,
     deposit_for_burn_with_hook::*, handle_receive_finalized_message::*,
     handle_receive_unfinalized_message::*, initialize::*, remove_remote_token_messenger::*,
-    transfer_ownership::*, undenylist_account::*, update_denylister::*,
+    set_fee_recipient::*, set_min_fee::*, set_min_fee_controller::*, transfer_ownership::*,
+    undenylist_account::*, update_denylister::*,
 };
