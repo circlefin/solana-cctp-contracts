@@ -46,7 +46,7 @@ pub struct ReceiveMessageContext<'info> {
     #[account()]
     pub caller: Signer<'info>,
 
-    /// CHECK: empty PDA, used to check that handleReceiveMessage was called by MessageTransmitter
+    /// CHECK: empty PDA, used to check that handleReceiveFinalizedMessage or handleReceiveUnfinalizedMessage was called by MessageTransmitter
     #[account(
         seeds = [b"message_transmitter_authority", receiver.key().as_ref()],
         bump,

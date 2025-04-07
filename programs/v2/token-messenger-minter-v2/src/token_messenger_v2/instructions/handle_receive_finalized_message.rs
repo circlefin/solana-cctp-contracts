@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-//! HandleReceiveMessage instruction handler
+//! HandleReceiveFinalizedMessage instruction handler
 
 use {
     crate::{
@@ -29,6 +29,7 @@ use {
         token_minter_v2::state::{LocalToken, TokenMinter, TokenPair},
     },
     anchor_lang::prelude::*,
+    anchor_lang::solana_program::sysvar::clock::Clock,
     anchor_spl::token::{Token, TokenAccount},
 };
 
@@ -117,32 +118,60 @@ pub struct HandleReceiveMessageContext<'info> {
 pub struct HandleReceiveMessageParams {
     pub remote_domain: u32,
     pub sender: Pubkey,
+    pub finality_threshold_executed: u32,
     pub message_body: Vec<u8>,
     pub authority_bump: u8,
 }
 
 // Instruction handler
-pub fn handle_receive_message(
+pub fn handle_receive_finalized_message(
     ctx: Context<HandleReceiveMessageContext>,
     params: &HandleReceiveMessageParams,
 ) -> Result<()> {
+    handle_receive_message(ctx, params)
+}
+
+// Extracted common processing function also used by handle_receive_unfinalized_message.
+pub(crate) fn handle_receive_message(
+    ctx: Context<HandleReceiveMessageContext>,
+    params: &HandleReceiveMessageParams,
+) -> Result<()> {
+    // Ensure the sender matches the expected token messenger
     require_eq!(
         params.sender,
         ctx.accounts.remote_token_messenger.token_messenger,
         TokenMessengerError::InvalidTokenMessenger
     );
 
-    // initialize burn message from the message_body while checking
+    // Initialize burn message from the message_body while checking
     // for length and message version
     let burn_message = BurnMessage::new(
         ctx.accounts.token_messenger.message_body_version,
         &params.message_body,
     )?;
 
-    // validate mint recipient
+    // Extract details from the burn message
     let mint_recipient = burn_message.mint_recipient()?;
     let amount = burn_message.amount()?;
+    let fee_executed = burn_message.fee_executed()?;
+    let expiration_block = burn_message.expiration_block()?;
+    let max_fee = burn_message.max_fee()?;
 
+    // Validate expiration_block
+    let current_block = Clock::get()?.slot;
+    require!(
+        expiration_block == 0 || expiration_block > current_block,
+        TokenMessengerError::MessageExpired
+    );
+
+    // Validate fee_executed
+    require!(fee_executed < amount, TokenMessengerError::FeeExceedsAmount);
+    require!(
+        fee_executed <= max_fee,
+        TokenMessengerError::FeeExceedsMaxFee
+    );
+
+    // Validate mint recipient
     require_keys_eq!(
         ctx.accounts.recipient_token_account.key(),
         mint_recipient,
@@ -150,6 +179,8 @@ pub fn handle_receive_message(
     );
 
     // transfer tokens
+    // TODO: mint amount - fee to recipient and fee to fee_account
+    // https://github.com/circlefin/evm-cctp-contracts/blob/6e7513cdb2bee6bb0cddf331fe972600fc5017c9/src/v2/BaseTokenMessenger.sol#L288
     ctx.accounts.token_minter.transfer(
         ctx.accounts.custody_token_account.to_account_info(),
         ctx.accounts.recipient_token_account.to_account_info(),
@@ -159,7 +190,8 @@ pub fn handle_receive_message(
         amount,
     )?;
 
-    // emit MintAndWithdraw event
+    // Emit MintAndWithdraw event
+    // TODO: add fee_collected
     emit_cpi!(MintAndWithdraw {
         mint_recipient,
         amount,

@@ -114,6 +114,21 @@ impl<'a> Message<'a> {
         hasher.result()
     }
 
+    /// Returns Keccak hash of the fields set on the source chain for the message
+    pub fn hash_source_fields(&self) -> Hash {
+        let mut hasher = Hasher::default();
+        hasher.hash(
+            [
+                &self.data[Self::VERSION_INDEX..Self::NONCE_INDEX],
+                &self.data[Self::SENDER_INDEX..Self::FINALITY_THRESHOLD_EXECUTED_INDEX],
+                &self.data.len().to_be_bytes().as_slice(),
+            ]
+            .concat()
+            .as_slice(),
+        );
+        hasher.result()
+    }
+
     /// Returns version field
     pub fn version(&self) -> Result<u32> {
         self.read_integer::<u32>(Self::VERSION_INDEX)

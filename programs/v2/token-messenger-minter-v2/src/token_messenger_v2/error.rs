@@ -48,6 +48,18 @@ pub enum TokenMessengerError {
     InvalidTokenPair,
     #[msg("Invalid token mint")]
     InvalidTokenMint,
+    #[msg("Invalid max fee")]
+    InvalidMaxFee,
+    #[msg("Invalid hook data")]
+    InvalidHookData,
+    #[msg("Fee exceeds amount")]
+    FeeExceedsAmount,
+    #[msg("Fee exceeds the max fee")]
+    FeeExceedsMaxFee,
+    #[msg("Message has expired")]
+    MessageExpired,
+    #[msg("Unsupported finality threshold")]
+    UnsupportedFinalityThreshold,
     #[msg("Account already denylisted")]
     AlreadyDenylisted,
     #[msg("Account not part of denylist")]

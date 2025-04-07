@@ -21,9 +21,10 @@ import * as ethutil from "ethereumjs-util";
 import * as utils from "../utils";
 import { TokenMessengerMinterV2 } from "../../target/types/token_messenger_minter_v2";
 import { MessageTransmitterV2 } from "../../target/types/message_transmitter_v2";
-import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import { PublicKey, Keypair, SystemProgram, AccountMeta } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import BN from "bn.js";
+import { findProgramAddress } from '../utils';
 
 const SIGNATURE_LENGTH = 65;
 
@@ -131,7 +132,7 @@ export class TestClient {
 
   findProgramAddress = (
     label: string,
-    extraSeeds = null,
+    extraSeeds: Parameters<typeof utils.findProgramAddress>[2] = null,
     program = this.program.programId
   ) => {
     return utils.findProgramAddress(label, program, extraSeeds);
@@ -206,7 +207,8 @@ export class TestClient {
     depositor: PublicKey,
     amount: bigint,
     maxFee: bigint,
-    hookData: Buffer
+    hookData: Buffer,
+    finalityThresholdExecuted: number = 2000
   ) => {
     const burnMessageBuffer = this.createBurnMessageBody(
       burnVersion,
@@ -227,7 +229,7 @@ export class TestClient {
       recipient.toBytes(),
       destinationCaller.toBytes(),
       new BN(minFinalityThreshold).toArrayLike(Buffer, "be", 4),
-      new BN(0).toArrayLike(Buffer, "be", 4),
+      new BN(finalityThresholdExecuted).toArrayLike(Buffer, "be", 4),
       burnMessageBuffer,
     ]);
   };
@@ -535,9 +537,9 @@ export class TestClient {
     destinationDomain: number,
     mintRecipient: PublicKey,
     messageSentEventAccountKeypair: Keypair,
-    minFinalityThreshold: number,
-    maxFee: BN,
-    hookData: Buffer,
+    minFinalityThreshold: number = 2000,
+    maxFee: BN = new BN(0),
+    destinationCaller: PublicKey = PublicKey.default,
     owner: PublicKey = this.user.publicKey
   ) => {
     const remoteTokenMessenger = this.findProgramAddress(
@@ -552,7 +554,7 @@ export class TestClient {
         mintRecipient,
         maxFee,
         minFinalityThreshold,
-        hookData,
+        destinationCaller,
       })
       .accounts({
         owner,
@@ -575,23 +577,24 @@ export class TestClient {
       .rpc();
   };
 
-  depositForBurnWithCaller = async (
+  depositForBurnWithHook = async (
     amount: BN,
     destinationDomain: number,
     mintRecipient: PublicKey,
-    destinationCaller: PublicKey,
     messageSentEventAccountKeypair: Keypair,
-    minFinalityThreshold: number,
-    maxFee: BN,
     hookData: Buffer,
+    maxFee: BN = new BN(0),
+    minFinalityThreshold: number = 2000,
+    destinationCaller: PublicKey = PublicKey.default,
     owner: PublicKey = this.user.publicKey
   ) => {
     const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
       [destinationDomain.toString()]
     ).publicKey;
+
     return await this.program.methods
-      .depositForBurnWithCaller({
+      .depositForBurnWithHook({
         amount,
         destinationDomain,
         mintRecipient,
@@ -657,8 +660,8 @@ export class TestClient {
     remoteDomain: number,
     remoteToken: PublicKey,
     nonce: Buffer,
-    message: number[],
-    attestation: number[]
+    message: number[] | Buffer<ArrayBufferLike>,
+    attestation: number[] | Buffer<ArrayBuffer>
   ) => {
     const usedNonce = this.findProgramAddress(
       "used_nonce",
@@ -683,7 +686,7 @@ export class TestClient {
       [remoteDomain.toString()]
     ).publicKey;
 
-    let accountMetas = [];
+    let accountMetas: Array<AccountMeta> = [];
     accountMetas.push({
       isSigner: false,
       isWritable: false,
@@ -755,11 +758,13 @@ export class TestClient {
   reclaimEventAccount = async (
     payee: Keypair,
     attestation: number[],
+    destinationMessage: Buffer<ArrayBufferLike>,
     messageSentEventAccount: PublicKey
   ) => {
     return await this.messageTransmitterProgram.methods
       .reclaimEventAccount({
         attestation: Buffer.from(attestation),
+        destinationMessage,
       })
       .accounts({
         payee: payee.publicKey,

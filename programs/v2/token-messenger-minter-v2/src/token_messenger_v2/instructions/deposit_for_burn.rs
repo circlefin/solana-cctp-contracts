@@ -107,16 +107,17 @@ pub struct DepositForBurnContext<'info> {
 
 // Instruction parameters
 // NOTE: Do not reorder parameters fields. repr(C) is used to fix the layout of the struct
-// so DepositForBurnWithCallerParams can be deserialized as DepositForBurnParams.
+// so DepositForBurnWithHookParams can be deserialized as DepositForBurnParams.
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct DepositForBurnParams {
     pub amount: u64,
     pub destination_domain: u32,
     pub mint_recipient: Pubkey,
+    // For no destination caller, use Pubkey::default()
+    pub destination_caller: Pubkey,
     pub max_fee: u64,
     pub min_finality_threshold: u32,
-    pub hook_data: Vec<u8>,
 }
 
 // Instruction handler
@@ -129,10 +130,10 @@ pub fn deposit_for_burn(
         params.amount,
         params.destination_domain,
         &params.mint_recipient,
-        &Pubkey::default(),
+        &params.destination_caller,
         params.max_fee,
         params.min_finality_threshold,
-        &params.hook_data,
+        &Vec::new(),
     )
 }
 
@@ -148,6 +149,7 @@ pub fn deposit_for_burn_helper(
     hook_data: &Vec<u8>,
 ) -> Result<()> {
     require_gt!(amount, 0, TokenMessengerError::InvalidAmount);
+    require_gt!(amount, max_fee, TokenMessengerError::InvalidMaxFee);
 
     require_keys_neq!(
         *mint_recipient,
@@ -180,7 +182,6 @@ pub fn deposit_for_burn_helper(
     let cpi_program = ctx.accounts.message_transmitter_program.to_account_info();
 
     // prepare context for the CPI call,
-    // the same context is used for SendMessage and SendMessageWithCaller
     let cpi_accounts = SendMessageContext {
         event_rent_payer: ctx.accounts.event_rent_payer.to_account_info(),
         sender_authority_pda: ctx.accounts.sender_authority_pda.to_account_info(),
@@ -200,7 +201,15 @@ pub fn deposit_for_burn_helper(
 
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, authority_seeds);
 
-    // TODO call cpi send_message with or w/o caller
+    // call MessageTransmitter::SendMessage
+    let cpi_params = SendMessageParams {
+        destination_domain,
+        recipient: ctx.accounts.remote_token_messenger.token_messenger,
+        message_body: burn_message,
+        destination_caller: *destination_caller,
+        min_finality_threshold,
+    };
+    message_transmitter_v2::cpi::send_message(cpi_ctx, cpi_params)?;
 
     // emit DepositForBurn event
     emit_cpi!(DepositForBurn {
@@ -211,6 +220,9 @@ pub fn deposit_for_burn_helper(
         destination_domain,
         destination_token_messenger: ctx.accounts.remote_token_messenger.token_messenger,
         destination_caller: *destination_caller,
+        max_fee,
+        min_finality_threshold,
+        hook_data: hook_data.to_vec(),
     });
 
     Ok(())

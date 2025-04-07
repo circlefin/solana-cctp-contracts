@@ -41,6 +41,9 @@ pub struct DepositForBurn {
     pub destination_domain: u32,
     pub destination_token_messenger: Pubkey,
     pub destination_caller: Pubkey,
+    pub max_fee: u64,
+    pub min_finality_threshold: u32,
+    pub hook_data: Vec<u8>,
 }
 
 #[event]

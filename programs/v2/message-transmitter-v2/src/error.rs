@@ -86,6 +86,8 @@ pub enum MessageTransmitterError {
     InvalidSignatureSValue,
     #[msg("Invalid message hash")]
     InvalidMessageHash,
+    #[msg("Invalid destination message")]
+    InvalidDestinationMessage,
 }
 
 #[error_code]

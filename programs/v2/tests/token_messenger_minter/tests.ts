@@ -22,6 +22,7 @@ import { expect, assert } from "chai";
 import * as ethutil from "ethereumjs-util";
 import BN from "bn.js";
 import * as spl from "@solana/spl-token";
+import { padStartZero } from "../utils";
 
 describe("token_messenger_minter_v2", () => {
   let tc = new TestClient();
@@ -244,16 +245,22 @@ describe("token_messenger_minter_v2", () => {
           remoteDomain,
           mintRecipient,
           Keypair.generate(),
+          undefined,
+          undefined,
+          undefined,
           tc.denylistedAccount.publicKey
         )
       )
       await tc.ensureFails(
-        tc.depositForBurnWithCaller(
+        tc.depositForBurnWithHook(
           new BN(20),
           remoteDomain,
           mintRecipient,
-          destinationCaller,
           Keypair.generate(),
+          Buffer.from([1,2,3]),
+          undefined,
+          undefined,
+          undefined,
           tc.denylistedAccount.publicKey
         )
       )
@@ -489,7 +496,8 @@ describe("token_messenger_minter_v2", () => {
   });
 
   it("depositForBurn", async () => {
-    expect(await tc.isNonceUsed(messageNonce)).to.be.false;
+    const response = await tc.isNonceUsed(messageNonce);
+    expect(response).to.be.false;
 
     // MessageSent event data is stored in a stand-alone account.
     // A random Keypair needs to be provided so the account can be initialized by the contract.
@@ -501,9 +509,6 @@ describe("token_messenger_minter_v2", () => {
       remoteDomain,
       mintRecipient,
       messageSentEventAccountKeypair,
-      minFinalityThreshold,
-      new BN(1),
-      hookData
     );
 
     const events = await tc.readEvents(signature, [
@@ -524,6 +529,9 @@ describe("token_messenger_minter_v2", () => {
       destinationDomain: remoteDomain,
       destinationTokenMessenger: recipient,
       destinationCaller: PublicKey.default,
+      maxFee: "0",
+      minFinalityThreshold: 2000,
+      hookData: Buffer.from([]),
     };
     expect(JSON.stringify(depositForBurn)).to.equal(
       JSON.stringify(depositForBurnExpected)
@@ -549,15 +557,14 @@ describe("token_messenger_minter_v2", () => {
   it("depositForBurnWithCaller", async () => {
     const messageSentEventAccountKeypair = Keypair.generate();
 
-    const signature = await tc.depositForBurnWithCaller(
+    const signature = await tc.depositForBurn(
       new BN(20),
       remoteDomain,
       mintRecipient,
-      destinationCaller,
       messageSentEventAccountKeypair,
-      minFinalityThreshold,
-      new BN(1),
-      hookData
+      undefined,
+      undefined,
+      destinationCaller,
     );
 
     const events = await tc.readEvents(signature, [
@@ -578,6 +585,9 @@ describe("token_messenger_minter_v2", () => {
       destinationDomain: remoteDomain,
       destinationTokenMessenger: recipient,
       destinationCaller,
+      maxFee: "0",
+      minFinalityThreshold: 2000,
+      hookData: Buffer.from([]),
     };
     expect(JSON.stringify(depositForBurn)).to.equal(
       JSON.stringify(depositForBurnExpected)
@@ -590,7 +600,52 @@ describe("token_messenger_minter_v2", () => {
     expect(messageSent.message.length).to.equal(376);
   });
 
-  it("receiveMessage", async () => {
+  it("depositForBurnWithHook", async () => {
+    const messageSentEventAccountKeypair = Keypair.generate();
+    const hookData = Buffer.from("example hook data");
+
+    const signature = await tc.depositForBurnWithHook(
+      new BN(20),
+      remoteDomain,
+      mintRecipient,
+      messageSentEventAccountKeypair,
+      hookData,
+    );
+
+    const events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
+
+    const depositForBurn = tc.getEvent(
+      events,
+      tc.program.programId,
+      "depositForBurn"
+    );
+    const depositForBurnExpected = {
+      burnToken: tc.localTokenMint.publicKey,
+      amount: "20",
+      depositor,
+      mintRecipient,
+      destinationDomain: remoteDomain,
+      destinationTokenMessenger: recipient,
+      destinationCaller: PublicKey.default,
+      maxFee: "0",
+      minFinalityThreshold: 2000,
+      hookData,
+    };
+    expect(JSON.stringify(depositForBurn)).to.equal(
+      JSON.stringify(depositForBurnExpected)
+    );
+
+    const messageSent =
+      await tc.messageTransmitterProgram.account.messageSent.fetch(
+        messageSentEventAccountKeypair.publicKey
+      );
+    expect(messageSent.message.length).to.equal(393);
+  });
+
+  it("receiveMessage - finalized", async () => {
     // fund custody
     await spl.mintToChecked(
       tc.provider.connection,
@@ -637,6 +692,7 @@ describe("token_messenger_minter_v2", () => {
       sourceDomain: messageSourceDomain,
       nonce: Array.from(messageNonce),
       sender,
+      finalityThresholdExecuted: 2000,
       messageBody: tc.createBurnMessageBody(
         messageBodyVersion,
         remoteToken,
@@ -669,10 +725,128 @@ describe("token_messenger_minter_v2", () => {
       custody: tc.custodyTokenAccount.publicKey,
       mint: tc.localTokenMint.publicKey,
       burnLimitPerMessage: "100",
-      messagesSent: "2",
+      messagesSent: "3",
       messagesReceived: "1",
-      amountSent: "40",
+      amountSent: "60",
       amountReceived: "200000000",
+      bump: tc.localToken.bump,
+      custodyBump: tc.custodyTokenAccount.bump,
+    };
+
+    const localTokenState = await tc.program.account.localToken.fetch(
+      tc.localToken.publicKey
+    );
+
+    expect(JSON.stringify(localTokenState)).to.equal(
+      JSON.stringify(localTokenExpected)
+    );
+  });
+
+  it("receiveMessage - unfinalized", async () => {
+    // fund custody
+    await spl.mintToChecked(
+      tc.provider.connection,
+      tc.owner,
+      tc.localTokenMint.publicKey,
+      tc.custodyTokenAccount.publicKey,
+      tc.owner,
+      messageAmount,
+      9
+    );
+
+    const finalityThresholdExecuted = 1000;
+    let messageNonce2 = Buffer.from("a99ca1348591db5efaafe71d20f08bc97f4ca01c2dec23a94736a0bb9f21c3f0", "hex");
+    const unfinalizedMessage = tc.createBurnMessage(
+      messageVersion,
+      messageSourceDomain,
+      remoteDomain,
+      messageNonce2,
+      sender,
+      recipient,
+      destinationCaller,
+      minFinalityThreshold,
+      messageBodyVersion,
+      remoteToken,
+      mintRecipient,
+      depositor,
+      messageAmount,
+      maxFee,
+      hookData,
+      finalityThresholdExecuted
+    );
+
+    const signature = await tc.receiveMessage(
+      remoteDomain,
+      remoteToken,
+      messageNonce2,
+      unfinalizedMessage,
+      tc.attest(unfinalizedMessage, [attesterPrivateKey1, attesterPrivateKey2])
+    );
+
+    // Receiving the same message should fail as nonce is already used
+    await tc.ensureFails(
+      tc.receiveMessage(
+        remoteDomain,
+        remoteToken,
+        messageNonce2,
+        unfinalizedMessage,
+        tc.attest(unfinalizedMessage, [attesterPrivateKey1, attesterPrivateKey2])
+      )
+    );
+
+    const events = await tc.readEvents(signature, [
+      tc.program,
+      tc.messageTransmitterProgram,
+    ]);
+
+    const messageReceived = tc.getEvent(
+      events,
+      tc.messageTransmitterProgram.programId,
+      "messageReceived"
+    );
+
+    const messageReceivedExpected = {
+      caller: tc.provider.wallet.publicKey,
+      sourceDomain: messageSourceDomain,
+      nonce: Array.from(messageNonce2),
+      sender,
+      finalityThresholdExecuted,
+      messageBody: tc.createBurnMessageBody(
+        messageBodyVersion,
+        remoteToken,
+        mintRecipient,
+        depositor,
+        messageAmount,
+        maxFee,
+        hookData
+      ),
+    };
+    expect(JSON.stringify(messageReceived)).to.equal(
+      JSON.stringify(messageReceivedExpected)
+    );
+
+    const mintAndWithdraw = tc.getEvent(
+      events,
+      tc.program.programId,
+      "mintAndWithdraw"
+    );
+    const mintAndWithdrawExpected = {
+      mintRecipient,
+      amount: messageAmount.toString(),
+      mintToken: tc.localTokenMint.publicKey,
+    };
+    expect(JSON.stringify(mintAndWithdraw)).to.equal(
+      JSON.stringify(mintAndWithdrawExpected)
+    );
+
+    localTokenExpected = {
+      custody: tc.custodyTokenAccount.publicKey,
+      mint: tc.localTokenMint.publicKey,
+      burnLimitPerMessage: "100",
+      messagesSent: "3",
+      messagesReceived: "2",
+      amountSent: "60",
+      amountReceived: "400000000",
       bump: tc.localToken.bump,
       custodyBump: tc.custodyTokenAccount.bump,
     };
@@ -706,15 +880,14 @@ describe("token_messenger_minter_v2", () => {
     const messageAmount = 20;
     const messageSentEventAccountKeypair = Keypair.generate();
 
-    let signature = await tc.depositForBurnWithCaller(
+    let signature = await tc.depositForBurn(
       new BN(messageAmount),
       remoteDomain,
       mintRecipient,
-      destinationCaller,
       messageSentEventAccountKeypair,
-      minFinalityThreshold,
+      undefined,
       new BN(1),
-      hookData
+      destinationCaller,
     );
 
     let events = await tc.readEvents(signature, [
@@ -736,6 +909,9 @@ describe("token_messenger_minter_v2", () => {
       destinationDomain: remoteDomain,
       destinationTokenMessenger: recipient,
       destinationCaller,
+      maxFee: "1",
+      minFinalityThreshold: 2000,
+      hookData: Buffer.from([]),
     };
     expect(JSON.stringify(depositForBurn)).to.equal(
       JSON.stringify(depositForBurnExpected)
@@ -750,6 +926,23 @@ describe("token_messenger_minter_v2", () => {
     const messageBytes = messageSent.message;
     // Replace 32 bytes in messageBytes starting at index 12 with messageNonce
     messageNonce.copy(messageBytes, 12, 0, 32);
+    // write extra fields to message 
+    const finalityThresholdExecuted = 2000;
+    const feeExecuted = 1;
+    const expirationBlock = 0;
+    messageBytes.writeUInt32BE(finalityThresholdExecuted, 144);
+    messageBytes.write(
+      padStartZero(BigInt(feeExecuted).toString(16), 64),
+        148 + 164,
+        32,
+        "hex",
+    );
+    messageBytes.write(
+      padStartZero(BigInt(expirationBlock).toString(16), 64),
+        148 + 196,
+        32,
+        "hex",
+    );
 
     // sign the message
     const messageHash = ethutil.keccak256(messageBytes);
@@ -823,6 +1016,7 @@ describe("token_messenger_minter_v2", () => {
       sourceDomain: remoteDomain,
       nonce: Array.from(messageNonce),
       sender,
+      finalityThresholdExecuted: 2000,
       messageBody: messageReceived.messageBody,
     };
     expect(JSON.stringify(messageReceived)).to.equal(
@@ -847,10 +1041,10 @@ describe("token_messenger_minter_v2", () => {
       custody: tc.custodyTokenAccount.publicKey,
       mint: tc.localTokenMint.publicKey,
       burnLimitPerMessage: "100",
-      messagesSent: "3",
-      messagesReceived: "2",
-      amountSent: "60",
-      amountReceived: "200000020",
+      messagesSent: "4",
+      messagesReceived: "3",
+      amountSent: "80",
+      amountReceived: "400000020",
       bump: tc.localToken.bump,
       custodyBump: tc.custodyTokenAccount.bump,
     };
@@ -875,12 +1069,14 @@ describe("token_messenger_minter_v2", () => {
       tc.reclaimEventAccount(
         tc.owner,
         combinedSignedMessageBytes,
+        messageBytes,
         messageSentEventAccountKeypair.publicKey
       )
     );
     await tc.reclaimEventAccount(
       tc.user,
       combinedSignedMessageBytes,
+      messageBytes,
       messageSentEventAccountKeypair.publicKey
     );
 

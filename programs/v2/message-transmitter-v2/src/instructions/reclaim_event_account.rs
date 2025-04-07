@@ -48,6 +48,8 @@ pub struct ReclaimEventAccountContext<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct ReclaimEventAccountParams {
     pub attestation: Vec<u8>,
+    // Destination message from iris
+    pub destination_message: Vec<u8>,
 }
 
 // Instruction handler
@@ -65,8 +67,17 @@ pub fn reclaim_event_account(
     let event_data = ctx.accounts.message_sent_event_data.as_ref();
 
     let message = Message::new(message_transmitter.version, &event_data.message)?;
+    let destination_message =
+        Message::new(message_transmitter.version, &params.destination_message)?;
+    // Ensure the source fields for the message and destination message match.
+    require_eq!(
+        message.hash_source_fields(),
+        destination_message.hash_source_fields(),
+        MessageTransmitterError::InvalidDestinationMessage
+    );
 
-    message_transmitter.verify_attestation_signatures(&message.hash(), &params.attestation)?;
+    message_transmitter
+        .verify_attestation_signatures(&destination_message.hash(), &params.attestation)?;
 
     require_eq!(
         message.source_domain()?,

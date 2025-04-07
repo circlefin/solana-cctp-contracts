@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
-//! DepositForBurnWithCaller instruction handler
+//! DepositForBurnWithHook instruction handler
 
 use {
-    crate::token_messenger_v2::{error::TokenMessengerError, instructions::DepositForBurnContext},
+    crate::{
+        token_messenger_v2::error::TokenMessengerError,
+        token_messenger_v2::instructions::DepositForBurnContext,
+    },
     anchor_lang::prelude::*,
 };
 
@@ -27,28 +30,29 @@ use {
 
 // Instruction parameters
 // NOTE: Do not reorder parameters fields. repr(C) is used to fix the layout of the struct
-// so DepositForBurnWithCallerParams can be deserialized as DepositForBurnParams.
+// so DepositForBurnWithHookParams can be deserialized as DepositForBurnParams.
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct DepositForBurnWithCallerParams {
+pub struct DepositForBurnWithHookParams {
     pub amount: u64,
     pub destination_domain: u32,
     pub mint_recipient: Pubkey,
+    // For no destination caller, use Pubkey::default()
+    pub destination_caller: Pubkey,
     pub max_fee: u64,
     pub min_finality_threshold: u32,
     pub hook_data: Vec<u8>,
-    pub destination_caller: Pubkey,
 }
 
 // Instruction handler
-pub fn deposit_for_burn_with_caller(
+pub fn deposit_for_burn_with_hook(
     ctx: Context<DepositForBurnContext>,
-    params: &DepositForBurnWithCallerParams,
+    params: &DepositForBurnWithHookParams,
 ) -> Result<()> {
-    require_keys_neq!(
-        params.destination_caller,
-        Pubkey::default(),
-        TokenMessengerError::InvalidDestinationCaller
+    require_gt!(
+        params.hook_data.len(),
+        0,
+        TokenMessengerError::InvalidHookData
     );
 
     crate::token_messenger_v2::instructions::deposit_for_burn_helper(

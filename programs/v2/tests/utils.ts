@@ -22,7 +22,7 @@ import { PublicKey, Connection } from "@solana/web3.js";
 export function findProgramAddress(
   label: string,
   program: PublicKey,
-  extraSeeds = null
+  extraSeeds: (unknown)[] | null = null
 ) {
   const seeds = [Buffer.from(anchor.utils.bytes.utf8.encode(label))];
   if (extraSeeds) {
@@ -148,3 +148,7 @@ export function generateUsedNoncesCollisions(numCollisions = 500) {
   } 
   return collisions;
 }
+
+export const padStartZero = (str: string, length: number): string => {
+  return str.padStart(length, "0");
+};

@@ -98,18 +98,25 @@ pub mod token_messenger_minter_v2 {
         token_messenger_v2::instructions::deposit_for_burn(ctx, &params)
     }
 
-    pub fn deposit_for_burn_with_caller(
+    pub fn deposit_for_burn_with_hook(
         ctx: Context<DepositForBurnContext>,
-        params: DepositForBurnWithCallerParams,
+        params: DepositForBurnWithHookParams,
     ) -> Result<()> {
-        token_messenger_v2::instructions::deposit_for_burn_with_caller(ctx, &params)
+        token_messenger_v2::instructions::deposit_for_burn_with_hook(ctx, &params)
     }
 
-    pub fn handle_receive_message(
+    pub fn handle_receive_finalized_message(
         ctx: Context<HandleReceiveMessageContext>,
         params: HandleReceiveMessageParams,
     ) -> Result<()> {
-        token_messenger_v2::instructions::handle_receive_message(ctx, &params)
+        token_messenger_v2::instructions::handle_receive_finalized_message(ctx, &params)
+    }
+
+    pub fn handle_receive_unfinalized_message(
+        ctx: Context<HandleReceiveMessageContext>,
+        params: HandleReceiveMessageParams,
+    ) -> Result<()> {
+        token_messenger_v2::instructions::handle_receive_unfinalized_message(ctx, &params)
     }
 
     // token_minter_v2 instructions
