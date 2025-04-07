@@ -26,8 +26,6 @@ jobs:
         run: |
           source ./run.sh setup_v2
           ./run.sh test_v2
-        # Revert once v2 is ready to be tested
-        continue-on-error: true
       - name: Run format check
         run: cd programs/v2 && cargo fmt -- --check
 

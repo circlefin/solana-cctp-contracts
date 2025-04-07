@@ -21,6 +21,7 @@ import { MessageTransmitterV2 } from "../../target/types/message_transmitter_v2"
 import * as utils from "../utils";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
+import { expect } from "chai";
 
 export class TestClient {
   owner: Keypair;
@@ -114,121 +115,127 @@ export class TestClient {
       .rpc();
   };
 
-  transferOwnership = async (newOwner: PublicKey) => {
-    const currentOwner = (
-      await this.program.account.messageTransmitter.fetch(
-        this.messageTransmitter.publicKey
-      )
-    ).owner;
+  transferOwnership = async (newOwner: PublicKey, from?: Keypair) => {
+    const signer = [from ?? this.owner];
 
     return await this.program.methods
       .transferOwnership({ newOwner })
       .accounts({
-        owner: currentOwner,
+        owner: signer[0].publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
-      .signers(currentOwner == this.owner.publicKey ? [this.owner] : [])
-      .rpc({commitment: "confirmed"});
+      .signers(signer)
+      .rpc();
   };
 
   acceptOwnership = async (newOwner: Keypair) => {
     return await this.program.methods
       .acceptOwnership({})
       .accounts({
-        pendingOwner: this.owner.publicKey,
+        pendingOwner: newOwner.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
       .signers([newOwner])
       .rpc();
   };
 
-  updatePauser = async (newPauser: PublicKey) => {
+  updatePauser = async (newPauser: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .updatePauser({ newPauser })
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
-      .signers([this.owner])
+      .signers([signer])
       .rpc();
   };
 
-  updateAttesterManager = async (newAttesterManager: PublicKey) => {
+  updateAttesterManager = async (newAttesterManager: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .updateAttesterManager({ newAttesterManager })
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
-      .signers([this.owner])
+      .signers([signer])
       .rpc();
   };
 
-  pause = async () => {
+  pause = async (signer = this.pauser) => {
     return await this.program.methods
       .pause({})
       .accounts({
-        pauser: this.pauser.publicKey,
+        pauser: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
-      .signers([this.pauser])
+      .signers([signer])
       .rpc();
   };
 
-  unpause = async () => {
+  unpause = async (signer = this.pauser) => {
     return await this.program.methods
       .unpause({})
       .accounts({
-        pauser: this.pauser.publicKey,
+        pauser: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
-      .signers([this.pauser])
+      .signers([signer])
       .rpc();
   };
 
-  setMaxMessageBodySize = async (newMaxMessageBodySize: BN) => {
+  setMaxMessageBodySize = async (newMaxMessageBodySize: BN, signer = this.owner) => {
     return await this.program.methods
       .setMaxMessageBodySize({ newMaxMessageBodySize })
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
-      .signers([this.owner])
+      .signers([signer])
       .rpc();
   };
 
-  enableAttester = async (newAttester: PublicKey) => {
+  enableAttester = async (newAttester: PublicKey, signer = this.attesterManager) => {
     return await this.program.methods
       .enableAttester({ newAttester })
       .accounts({
-        attesterManager: this.attesterManager.publicKey,
+        attesterManager: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([this.attesterManager])
+      .signers([signer])
       .rpc();
   };
 
-  disableAttester = async (attester: PublicKey) => {
+  disableAttester = async (attester: PublicKey, signer = this.attesterManager) => {
     return await this.program.methods
       .disableAttester({ attester })
       .accounts({
-        attesterManager: this.attesterManager.publicKey,
+        attesterManager: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([this.attesterManager])
+      .signers([signer])
       .rpc();
   };
 
-  setSignatureThreshold = async (newSignatureThreshold: number) => {
+  setSignatureThreshold = async (newSignatureThreshold: number, signer = this.attesterManager) => {
     return await this.program.methods
       .setSignatureThreshold({ newSignatureThreshold })
       .accounts({
-        attesterManager: this.attesterManager.publicKey,
+        attesterManager: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
-      .signers([this.attesterManager])
+      .signers([signer])
       .rpc();
   };
+
+  verifyState = async (messageTransmitterExpected: ReturnType<typeof this.program.account.messageTransmitter.fetch>) => {
+    const messageTransmitter =
+      await this.program.account.messageTransmitter.fetch(
+        this.messageTransmitter.publicKey
+      );
+    expect(JSON.stringify(messageTransmitter)).to.equal(
+      JSON.stringify(messageTransmitterExpected)
+    );
+  }
 }
