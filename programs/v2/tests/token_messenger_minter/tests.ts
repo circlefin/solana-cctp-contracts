@@ -460,7 +460,6 @@ describe("token_messenger_minter_v2", () => {
 
     const tokenPair = tc.findProgramAddress("token_pair", [
       remoteDomain.toString(),
-      tc.tokenMinter.bump,
       remoteToken,
     ]);
 
@@ -485,7 +484,6 @@ describe("token_messenger_minter_v2", () => {
 
     const tokenPair = tc.findProgramAddress("token_pair", [
       remoteDomain.toString(),
-      tc.tokenMinter.bump,
       remoteToken,
     ]);
     await tc.ensureFails(

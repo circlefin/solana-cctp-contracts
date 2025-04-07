@@ -115,6 +115,11 @@ impl<'a> BurnMessage<'a> {
         self.read_pubkey(Self::BURN_TOKEN_INDEX)
     }
 
+    /// Returns burn_token field as bytes
+    pub fn burn_token_bytes(&self) -> Result<[u8; 32]> {
+        Ok(self.read_pubkey(Self::BURN_TOKEN_INDEX)?.to_bytes())
+    }
+
     /// Returns mint_recipient field
     pub fn mint_recipient(&self) -> Result<Pubkey> {
         self.read_pubkey(Self::MINT_RECIPIENT_INDEX)

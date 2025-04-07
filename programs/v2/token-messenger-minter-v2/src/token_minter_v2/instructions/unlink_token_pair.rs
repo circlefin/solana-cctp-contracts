@@ -47,7 +47,6 @@ pub struct UnlinkTokenPairContext<'info> {
         seeds = [
             b"token_pair",
             token_pair.remote_domain.to_string().as_bytes(),
-            &[token_minter.bump],
             token_pair.remote_token.as_ref()
         ],
         bump = token_pair.bump,

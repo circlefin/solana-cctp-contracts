@@ -494,7 +494,6 @@ export class TestClient {
   linkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
     const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
-      this.tokenMinter.bump,
       remoteToken,
     ]);
 
@@ -517,7 +516,6 @@ export class TestClient {
   unlinkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
     const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
-      this.tokenMinter.bump,
       remoteToken,
     ]);
 
@@ -677,7 +675,6 @@ export class TestClient {
 
     const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
-      this.tokenMinter.bump,
       remoteToken,
     ]).publicKey;
 
