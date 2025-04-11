@@ -63,7 +63,7 @@ pub fn set_fee_recipient(
     ctx.accounts.token_messenger.fee_recipient = params.new_fee_recipient;
 
     // Emit the event
-    emit!(FeeRecipientSet {
+    emit_cpi!(FeeRecipientSet {
         new_fee_recipient: ctx.accounts.token_messenger.fee_recipient,
     });
 

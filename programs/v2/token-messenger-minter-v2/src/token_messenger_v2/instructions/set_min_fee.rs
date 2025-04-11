@@ -56,7 +56,7 @@ pub fn set_min_fee(ctx: Context<SetMinFeeContext>, params: &SetMinFeeParams) -> 
     ctx.accounts.token_messenger.min_fee = params.new_min_fee;
 
     // Emit the event
-    emit!(MinFeeSet {
+    emit_cpi!(MinFeeSet {
         new_min_fee: ctx.accounts.token_messenger.min_fee,
     });
 

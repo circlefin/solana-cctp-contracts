@@ -17,14 +17,18 @@
  */
 
 import * as anchor from "@coral-xyz/anchor";
-import * as ethutil from "ethereumjs-util";
-import * as utils from "../utils";
-import { TokenMessengerMinterV2 } from "../../target/types/token_messenger_minter_v2";
-import { MessageTransmitterV2 } from "../../target/types/message_transmitter_v2";
-import { PublicKey, Keypair, SystemProgram, AccountMeta } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
+import {
+  AccountMeta,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+} from "@solana/web3.js";
 import BN from "bn.js";
-import { findProgramAddress } from '../utils';
+import * as ethutil from "ethereumjs-util";
+import { MessageTransmitterV2 } from "../../target/types/message_transmitter_v2";
+import { TokenMessengerMinterV2 } from "../../target/types/token_messenger_minter_v2";
+import * as utils from "../utils";
 
 const SIGNATURE_LENGTH = 65;
 
@@ -36,6 +40,8 @@ export class TestClient {
   user: Keypair;
   denylister: Keypair;
   denylistedAccount: Keypair;
+  feeRecipient: Keypair;
+  minFeeController: Keypair;
 
   provider: anchor.AnchorProvider;
   program: anchor.Program<TokenMessengerMinterV2>;
@@ -51,6 +57,7 @@ export class TestClient {
   localToken: { publicKey: PublicKey; bump: number };
   custodyTokenAccount: { publicKey: PublicKey; bump: number };
   userTokenAccount: PublicKey;
+  feeRecipientTokenAccount: PublicKey;
 
   constructor() {
     this.provider = anchor.AnchorProvider.env();
@@ -72,6 +79,8 @@ export class TestClient {
     this.tokenController = Keypair.generate();
     this.denylister = Keypair.generate();
     this.denylistedAccount = Keypair.generate();
+    this.feeRecipient = Keypair.generate();
+    this.minFeeController = Keypair.generate();
     this.localTokenMint = Keypair.generate();
     this.user = Keypair.generate();
 
@@ -99,6 +108,7 @@ export class TestClient {
     ]);
 
     await this.provider.connection.requestAirdrop(this.user.publicKey, 1e9);
+    await this.provider.connection.requestAirdrop(this.feeRecipient.publicKey, 1e9);
     await this.provider.connection.confirmTransaction(
       await this.provider.connection.requestAirdrop(this.owner.publicKey, 1e9)
     );
@@ -117,6 +127,13 @@ export class TestClient {
       this.user,
       this.localTokenMint.publicKey,
       this.user.publicKey
+    );
+
+    this.feeRecipientTokenAccount = await spl.createAssociatedTokenAccount(
+      this.provider.connection,
+      this.feeRecipient,
+      this.localTokenMint.publicKey,
+      this.feeRecipient.publicKey
     );
 
     await spl.mintToChecked(
@@ -278,7 +295,10 @@ export class TestClient {
   initialize = async (
     tokenController: PublicKey,
     denylister: PublicKey,
-    messageBodyVersion: number
+    feeRecipient: PublicKey,
+    minFeeController: PublicKey,
+    messageBodyVersion: number,
+    minFee: number = 0
   ) => {
     const programData = PublicKey.findProgramAddressSync(
       [this.program.programId.toBuffer()],
@@ -289,6 +309,9 @@ export class TestClient {
       .initialize({
         tokenController,
         denylister,
+        feeRecipient,
+        minFeeController,
+        minFee,
         localMessageTransmitter: this.messageTransmitterProgram.programId,
         messageBodyVersion,
       })
@@ -310,7 +333,7 @@ export class TestClient {
       .accounts({
         denylister: this.denylister.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
-        systemProgram: SystemProgram.programId
+        systemProgram: SystemProgram.programId,
       })
       .signers([this.denylister])
       .rpc();
@@ -322,7 +345,7 @@ export class TestClient {
       .accounts({
         denylister: this.denylister.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
-        systemProgram: SystemProgram.programId
+        systemProgram: SystemProgram.programId,
       })
       .signers([this.denylister])
       .rpc();
@@ -530,6 +553,39 @@ export class TestClient {
       .rpc();
   };
 
+  setFeeRecipient = async (newFeeRecipient: PublicKey, _owner: Keypair = this.owner) => {
+    return await this.program.methods
+      .setFeeRecipient({ newFeeRecipient })
+      .accounts({
+        owner: _owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+      })
+      .signers([_owner])
+      .rpc();
+  };
+
+  setMinFeeController = async (newMinFeeController: PublicKey, _owner: Keypair = this.owner) => {
+    return await this.program.methods
+      .setMinFeeController({ newMinFeeController })
+      .accounts({
+        owner: this.owner.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+      })
+      .signers([_owner])
+      .rpc();
+  };
+
+  setMinFee = async (newMinFee: number, _minFeeController: Keypair = this.minFeeController) => {
+    return await this.program.methods
+      .setMinFee({ newMinFee })
+      .accounts({
+        minFeeController: this.minFeeController.publicKey,
+        tokenMessenger: this.tokenMessenger.publicKey,
+      })
+      .signers([_minFeeController])
+      .rpc();
+  };
+
   depositForBurn = async (
     amount: BN,
     destinationDomain: number,
@@ -712,6 +768,11 @@ export class TestClient {
     accountMetas.push({
       isSigner: false,
       isWritable: true,
+      pubkey: this.feeRecipientTokenAccount,
+    });
+    accountMetas.push({
+      isSigner: false,
+      isWritable: true,
       pubkey: this.userTokenAccount,
     });
     accountMetas.push({
@@ -779,8 +840,11 @@ export class TestClient {
       this.messageTransmitterProgram.programId
     ).publicKey;
 
-    return await this.messageTransmitterProgram.methods.isNonceUsed().accounts({usedNonce}).view()
-  }
+    return await this.messageTransmitterProgram.methods
+      .isNonceUsed()
+      .accounts({ usedNonce })
+      .view();
+  };
 
   burnTokenCustody = async (amount: BN) => {
     return await this.program.methods

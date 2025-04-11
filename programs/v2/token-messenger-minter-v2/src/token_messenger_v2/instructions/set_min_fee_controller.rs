@@ -63,7 +63,7 @@ pub fn set_min_fee_controller(
     ctx.accounts.token_messenger.min_fee_controller = params.new_min_fee_controller;
 
     // Emit the event
-    emit!(MinFeeControllerSet {
+    emit_cpi!(MinFeeControllerSet {
         new_min_fee_controller: params.new_min_fee_controller,
     });
 

@@ -94,6 +94,24 @@ pub mod token_messenger_minter_v2 {
         token_messenger_v2::instructions::remove_remote_token_messenger(ctx, &params)
     }
 
+    pub fn set_fee_recipient(
+        ctx: Context<SetFeeRecipientContext>,
+        params: SetFeeRecipientParams,
+    ) -> Result<()> {
+        token_messenger_v2::instructions::set_fee_recipient(ctx, &params)
+    }
+
+    pub fn set_min_fee_controller(
+        ctx: Context<SetMinFeeControllerContext>,
+        params: SetMinFeeControllerParams,
+    ) -> Result<()> {
+        token_messenger_v2::instructions::set_min_fee_controller(ctx, &params)
+    }
+
+    pub fn set_min_fee(ctx: Context<SetMinFeeContext>, params: SetMinFeeParams) -> Result<()> {
+        token_messenger_v2::instructions::set_min_fee(ctx, &params)
+    }
+
     pub fn deposit_for_burn(
         ctx: Context<DepositForBurnContext>,
         params: DepositForBurnParams,
