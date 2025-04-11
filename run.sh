@@ -90,8 +90,8 @@ function create_key_pair() {
 }
 
 function setup() {
-  setup_v2
   setup_v1
+  setup_v2
 }
 
 function install_avm() {
