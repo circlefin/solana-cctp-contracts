@@ -92,6 +92,20 @@ impl TokenMinter {
         anchor_spl::token::burn(context, amount)
     }
 
+    pub fn transfer_fee<'info>(
+        &self,
+        from: AccountInfo<'info>,
+        to: AccountInfo<'info>,
+        authority: AccountInfo<'info>,
+        token_program: AccountInfo<'info>,
+        local_token: &mut LocalToken,
+        amount: u64,
+    ) -> Result<()> {
+        local_token.amount_received = local_token.amount_received.saturating_add(amount as u128);
+
+        self._transfer(from, to, authority, token_program, amount)
+    }
+
     pub fn transfer<'info>(
         &self,
         from: AccountInfo<'info>,
@@ -101,24 +115,10 @@ impl TokenMinter {
         local_token: &mut LocalToken,
         amount: u64,
     ) -> Result<()> {
-        require!(!self.paused, TokenMinterError::ProgramPaused);
-
         local_token.messages_received = local_token.messages_received.saturating_add(1);
         local_token.amount_received = local_token.amount_received.saturating_add(amount as u128);
 
-        let authority_seeds: &[&[&[u8]]] = &[&[b"token_minter", &[self.bump]]];
-
-        let context = CpiContext::new(
-            token_program,
-            Transfer {
-                from,
-                to,
-                authority,
-            },
-        )
-        .with_signer(authority_seeds);
-
-        anchor_spl::token::transfer(context, amount)
+        self._transfer(from, to, authority, token_program, amount)
     }
 
     pub fn close_token_account<'info>(
@@ -140,6 +140,30 @@ impl TokenMinter {
         let cpi_context = anchor_lang::context::CpiContext::new(token_program, cpi_accounts);
 
         anchor_spl::token::close_account(cpi_context.with_signer(authority_seeds))
+    }
+
+    pub fn _transfer<'info>(
+        &self,
+        from: AccountInfo<'info>,
+        to: AccountInfo<'info>,
+        authority: AccountInfo<'info>,
+        token_program: AccountInfo<'info>,
+        amount: u64,
+    ) -> Result<()> {
+        require!(!self.paused, TokenMinterError::ProgramPaused);
+        let authority_seeds: &[&[&[u8]]] = &[&[b"token_minter", &[self.bump]]];
+
+        let context = CpiContext::new(
+            token_program,
+            Transfer {
+                from,
+                to,
+                authority,
+            },
+        )
+        .with_signer(authority_seeds);
+
+        anchor_spl::token::transfer(context, amount)
     }
 }
 

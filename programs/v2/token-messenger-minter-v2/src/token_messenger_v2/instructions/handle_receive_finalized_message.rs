@@ -188,14 +188,16 @@ pub(crate) fn handle_receive_message(
     let amount_less_fees = amount - fee_executed;
 
     // transfer tokens
-    ctx.accounts.token_minter.transfer(
-        ctx.accounts.custody_token_account.to_account_info(),
-        ctx.accounts.fee_recipient_token_account.to_account_info(),
-        ctx.accounts.token_minter.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        ctx.accounts.local_token.as_mut(),
-        fee_executed,
-    )?;
+    if fee_executed > 0 {
+        ctx.accounts.token_minter.transfer_fee(
+            ctx.accounts.custody_token_account.to_account_info(),
+            ctx.accounts.fee_recipient_token_account.to_account_info(),
+            ctx.accounts.token_minter.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.local_token.as_mut(),
+            fee_executed,
+        )?;
+    }
     ctx.accounts.token_minter.transfer(
         ctx.accounts.custody_token_account.to_account_info(),
         ctx.accounts.recipient_token_account.to_account_info(),
