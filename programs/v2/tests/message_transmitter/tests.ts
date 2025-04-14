@@ -28,7 +28,7 @@ describe("message_transmitter_v2", () => {
   let messageTransmitterExpected;
 
   const localDomain = 123;
-  const version = 0;
+  const version = 1;
 
   const attesterPrivateKey1 = Buffer.from(
     "160bb136f958af14b6abc453ed1cefd323fb7c13c3d753788471a75c44127fbc",

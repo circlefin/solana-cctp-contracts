@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-import * as spl from "@solana/spl-token";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
-import { assert, expect } from "chai";
-import * as ethutil from "ethereumjs-util";
-import { padStartZero } from "../utils";
 import { TestClient } from "./test_client";
+import { PublicKey, Keypair, AccountInfo } from "@solana/web3.js";
+import { expect, assert } from "chai";
+import * as ethutil from "ethereumjs-util";
+import BN from "bn.js";
+import * as spl from "@solana/spl-token";
+import { padStartZero } from "../utils";
 
 describe("token_messenger_minter_v2", () => {
   let tc = new TestClient();
@@ -33,13 +33,13 @@ describe("token_messenger_minter_v2", () => {
   let localTokenExpected;
   let tokenPairExpected;
 
-  const messageBodyVersion = 0;
+  const messageBodyVersion = 1;
   const remoteDomain = 123;
   const remoteToken = new PublicKey("1111111111113EsMD5n1VA94D2fALdb1SAKLam8j");
   let mintRecipient;
   let destinationCaller;
   let message;
-  const messageVersion = 0;
+  const messageVersion = 1;
   let messageNonce = Buffer.from(
     "a87ca1348591db5efaafe71d20f08bc97f4ca01c2dec23a94736a0bb9f21c3f0",
     "hex"
@@ -126,12 +126,7 @@ describe("token_messenger_minter_v2", () => {
       minFeeController: tc.minFeeController.publicKey,
       minFee: 0,
     };
-    const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-      tc.tokenMessenger.publicKey
-    );
-    expect(JSON.stringify(tokenMessenger)).to.equal(
-      JSON.stringify(tokenMessengerExpected)
-    );
+    await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
     const tokenMinter = await tc.program.account.tokenMinter.fetch(
       tc.tokenMinter.publicKey
@@ -142,12 +137,106 @@ describe("token_messenger_minter_v2", () => {
       paused: false,
       bump: tokenMinter.bump,
     };
-    expect(JSON.stringify(tokenMinter)).to.equal(
-      JSON.stringify(tokenMinterExpected)
-    );
+    await tc.verifyTokenMinterState(tokenMinterExpected);
   });
 
-  describe("Denylist", async () => {
+  describe("transferOwnership", () => {
+    it("fails when signer != owner", async () => {
+      const err = await tc.ensureFails(
+        tc.transferOwnership(tc.tokenController.publicKey, tc.pauser)
+      );
+      assert(err.logs[2].includes("InvalidAuthority"));
+
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
+    });
+
+    it("fails when new_owner = null", async () => {
+      const err = await tc.ensureFails(
+        tc.transferOwnership(PublicKey.default, tc.provider.wallet.payer)
+      );
+      assert(err.logs[2].includes("InvalidOwner"));
+
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
+    });
+
+    it("fails when old_owner = new_owner", async () => {
+      const err = await tc.ensureFails(
+        tc.transferOwnership(tc.provider.wallet.publicKey, tc.provider.wallet.payer)
+      );
+      assert(err.logs[2].includes("InvalidOwner"));
+
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
+    });
+
+    it("pending_owner = new_owner fails", async () => {
+      await tc.transferOwnership(tc.pauser.publicKey, tc.provider.wallet.payer);
+      const err = await tc.ensureFails(
+        tc.transferOwnership(tc.pauser.publicKey, tc.provider.wallet.payer)
+      );
+      assert(err.logs[2].includes("InvalidOwner"));
+
+      await tc.verifyTokenMessengerState({...tokenMessengerExpected, pendingOwner: tc.pauser.publicKey});
+    });
+
+    it("success", async () => {
+      const signature = await tc.transferOwnership(tc.owner.publicKey, tc.provider.wallet.payer);
+      const events = await tc.readEvents(signature, [tc.program]);
+      const ownershipTransferStarted = tc.getEvent(
+        events,
+        tc.program.programId,
+        "ownershipTransferStarted"
+      );
+
+      tokenMessengerExpected.pendingOwner = tc.owner.publicKey;
+
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
+
+      const eventExpected = {
+        previousOwner: tc.provider.wallet.publicKey,
+        newOwner: tc.owner.publicKey,
+      };
+      expect(JSON.stringify(ownershipTransferStarted)).to.equal(
+        JSON.stringify(eventExpected)
+      );
+    });
+  });
+
+  describe("acceptOwnership", () => {
+    it("fails when pending_owner != signer", async () => {
+      const err = await tc.ensureFails(
+        tc.acceptOwnership(tc.pauser)
+      );
+      assert(err.logs[2].includes("InvalidAuthority"));
+
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
+    });
+
+    it("success", async () => {
+      const signature = await tc.acceptOwnership(tc.owner);
+
+      const events = await tc.readEvents(signature, [tc.program]);
+      const ownershipTransferred = tc.getEvent(
+        events,
+        tc.program.programId,
+        "ownershipTransferred"
+      );
+
+      tokenMessengerExpected.owner = tc.owner.publicKey;
+      tokenMessengerExpected.pendingOwner = PublicKey.default;
+
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
+
+      const eventExpected = {
+        previousOwner: tc.provider.wallet.publicKey,
+        newOwner: tc.owner.publicKey,
+      };
+      expect(JSON.stringify(ownershipTransferred)).to.equal(
+        JSON.stringify(eventExpected)
+      );
+    });
+  });
+
+  describe("Denylist", () => {
     it("should succeed adding on multiple accounts to denylist", async () => {
       const signature = await tc.denylistAccount(
         tc.denylistedAccount.publicKey
@@ -167,12 +256,7 @@ describe("token_messenger_minter_v2", () => {
         secondaryDenylistedAccount.publicKey,
       ];
 
-      const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-        tc.tokenMessenger.publicKey
-      );
-      expect(JSON.stringify(tokenMessenger)).to.equal(
-        JSON.stringify(tokenMessengerExpected)
-      );
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
       const expectedEvent = {
         account: tc.denylistedAccount.publicKey,
@@ -202,12 +286,7 @@ describe("token_messenger_minter_v2", () => {
 
       tokenMessengerExpected.denylist = [];
 
-      const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-        tc.tokenMessenger.publicKey
-      );
-      expect(JSON.stringify(tokenMessenger)).to.equal(
-        JSON.stringify(tokenMessengerExpected)
-      );
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
       const expectedEvent = {
         account: tc.denylistedAccount.publicKey,
@@ -240,12 +319,7 @@ describe("token_messenger_minter_v2", () => {
 
       tokenMessengerExpected.denylister = newDenylister;
 
-      const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-        tc.tokenMessenger.publicKey
-      );
-      expect(JSON.stringify(tokenMessenger)).to.equal(
-        JSON.stringify(tokenMessengerExpected)
-      );
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
       const expectedEvent = {
         oldDenylister: tc.denylister.publicKey,
@@ -290,239 +364,332 @@ describe("token_messenger_minter_v2", () => {
     });
   });
 
-  it("transferOwnership", async () => {
-    const signature = await tc.transferOwnership(tc.owner.publicKey);
+  describe("addRemoteTokenMessenger", () => {
+    it("fails when signer != owner", async () => {
+      const err = await tc.ensureFails(
+        tc.addRemoteTokenMessenger(remoteDomain + 1, recipient, tc.pauser)
+      );
+      assert(err.logs[4].includes("InvalidAuthority"));
 
-    const events = await tc.readEvents(signature, [tc.program]);
-    const ownershipTransferStarted = tc.getEvent(
-      events,
-      tc.program.programId,
-      "ownershipTransferStarted"
-    );
+      const remoteTokenMessenger = tc.findProgramAddress(
+        "remote_token_messenger",
+        [(remoteDomain + 1).toString()]
+      ).publicKey;
+      await tc.ensureFails(
+        tc.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger)
+      );
+    });
 
-    tokenMessengerExpected.pendingOwner = tc.owner.publicKey;
+    it("fails when token_messenger = null", async () => {
+      const err = await tc.ensureFails(
+        tc.addRemoteTokenMessenger(remoteDomain + 2, PublicKey.default)
+      );
+      assert(err.logs[4].includes("InvalidTokenMessengerState"));
 
-    const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-      tc.tokenMessenger.publicKey
-    );
-    expect(JSON.stringify(tokenMessenger)).to.equal(
-      JSON.stringify(tokenMessengerExpected)
-    );
+      const remoteTokenMessenger = tc.findProgramAddress(
+        "remote_token_messenger",
+        [(remoteDomain + 2).toString()]
+      ).publicKey;
+      await tc.ensureFails(
+        tc.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger)
+      );
+    });
 
-    const eventExpected = {
-      previousOwner: tc.provider.wallet.publicKey,
-      newOwner: tc.owner.publicKey,
-    };
-    expect(JSON.stringify(ownershipTransferStarted)).to.equal(
-      JSON.stringify(eventExpected)
-    );
+    it("success", async () => {
+      await tc.addRemoteTokenMessenger(remoteDomain, recipient);
+
+      remoteTokenMessengerExpected = {
+        domain: remoteDomain,
+        tokenMessenger: recipient,
+      };
+
+      await tc.verifyRemoteTokenMessengerState(remoteDomain, remoteTokenMessengerExpected);
+    });
+    
+    it("fails when there is already a token messenger set for domain", async () => {
+      const err = await tc.ensureFails(
+        tc.addRemoteTokenMessenger(remoteDomain, recipient)
+      );
+      assert(err.logs[3].includes("already in use"));
+    });
   });
 
-  it("acceptOwnership", async () => {
-    const signature = await tc.acceptOwnership(tc.owner);
+  describe("removeRemoteTokenMessenger", () => {
+    it("fails when signer != owner", async () => {
+      const err = await tc.ensureFails(
+        tc.removeRemoteTokenMessenger(remoteDomain, tc.pauser)
+      );
+      assert(err.logs[2].includes("InvalidAuthority"));
 
-    const events = await tc.readEvents(signature, [tc.program]);
-    const ownershipTransferred = tc.getEvent(
-      events,
-      tc.program.programId,
-      "ownershipTransferred"
-    );
+      // Verify the remote token messenger still exists
+      await tc.verifyRemoteTokenMessengerState(remoteDomain, remoteTokenMessengerExpected);
+    });
 
-    tokenMessengerExpected.owner = tc.owner.publicKey;
-    tokenMessengerExpected.pendingOwner = PublicKey.default;
+    it("fails when remote token messenger doesn't exist", async () => {
+      const nonExistentDomain = remoteDomain + 999;
+      const err = await tc.ensureFails(
+        tc.removeRemoteTokenMessenger(nonExistentDomain)
+      );
+      assert(err.logs[2].includes("AccountNotInitialized"));
+    });
 
-    const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-      tc.tokenMessenger.publicKey
-    );
-    expect(JSON.stringify(tokenMessenger)).to.equal(
-      JSON.stringify(tokenMessengerExpected)
-    );
+    it("success", async () => {
+      await tc.removeRemoteTokenMessenger(remoteDomain);
+      const remoteTokenMessenger = tc.findProgramAddress(
+        "remote_token_messenger",
+        [remoteDomain.toString()]
+      ).publicKey;
+      await tc.ensureFails(
+        tc.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger)
+      );
 
-    const eventExpected = {
-      previousOwner: tc.provider.wallet.publicKey,
-      newOwner: tc.owner.publicKey,
-    };
-    expect(JSON.stringify(ownershipTransferred)).to.equal(
-      JSON.stringify(eventExpected)
-    );
+      await tc.addRemoteTokenMessenger(remoteDomain, recipient);
+    });
   });
 
-  it("addRemoteTokenMessenger", async () => {
-    await tc.addRemoteTokenMessenger(remoteDomain, recipient);
+  describe("updatePauser", () => {
+    it("fails when signer != owner", async () => {
+      const err = await tc.ensureFails(
+        tc.updatePauser(tc.pauser.publicKey, tc.pauser)
+      );
+      assert(err.logs[2].includes("InvalidAuthority"));
 
-    remoteTokenMessengerExpected = {
-      domain: remoteDomain,
-      tokenMessenger: recipient,
-    };
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
 
-    const remoteTokenMessenger = tc.findProgramAddress(
-      "remote_token_messenger",
-      [remoteDomain.toString()]
-    ).publicKey;
-    const remoteTokenMessengerState =
-      await tc.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger);
-    expect(JSON.stringify(remoteTokenMessengerState)).to.equal(
-      JSON.stringify(remoteTokenMessengerExpected)
-    );
+    it("fails when new_pauser = null", async () => {
+      const err = await tc.ensureFails(
+        tc.updatePauser(PublicKey.default)
+      );
+      assert(err.logs[2].includes("InvalidPauser"));
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
+
+    it("success", async () => {
+      await tc.updatePauser(tc.pauser.publicKey);
+
+      tokenMinterExpected.pauser = tc.pauser.publicKey;
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
+
+    it("fails when old_pauser = new_pauser", async () => {
+      const err = await tc.ensureFails(
+        tc.updatePauser(tc.pauser.publicKey)
+      );
+      assert(err.logs[2].includes("InvalidPauser"));
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
   });
 
-  it("removeRemoteTokenMessenger", async () => {
-    await tc.removeRemoteTokenMessenger(remoteDomain);
-    const remoteTokenMessenger = tc.findProgramAddress(
-      "remote_token_messenger",
-      [remoteDomain.toString()]
-    ).publicKey;
-    await tc.ensureFails(
-      tc.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger)
-    );
+  describe("setTokenController", () => {
+    it("fails when signer != owner", async () => {
+      const err = await tc.ensureFails(
+        tc.setTokenController(tc.pauser.publicKey, tc.pauser)
+      );
+      assert(err.logs[2].includes("InvalidAuthority"));
 
-    await tc.addRemoteTokenMessenger(remoteDomain, recipient);
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
+
+    it("fails when tokenController = null", async () => {
+      const err = await tc.ensureFails(
+        tc.setTokenController(PublicKey.default)
+      );
+      assert(err.logs[2].includes("InvalidTokenController"));
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
+
+    it("success", async () => {
+      await tc.setTokenController(tc.tokenController.publicKey);
+
+      tokenMinterExpected.tokenController = tc.tokenController.publicKey;
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
   });
 
-  it("updatePauser", async () => {
-    await tc.updatePauser(tc.pauser.publicKey);
+  describe("pause", () => {
+    it("fails when signer != pauser", async () => {
+      const err = await tc.ensureFails(
+        tc.pause(tc.owner)
+      );
+      assert(err.logs[2].includes("InvalidAuthority"));
 
-    tokenMinterExpected.pauser = tc.pauser.publicKey;
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
 
-    const tokenMinter = await tc.program.account.tokenMinter.fetch(
-      tc.tokenMinter.publicKey
-    );
-    expect(JSON.stringify(tokenMinter)).to.equal(
-      JSON.stringify(tokenMinterExpected)
-    );
+    it("success", async () => {
+      await tc.pause();
+
+      tokenMinterExpected.paused = true;
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
+
+    it("fails when already paused", async () => {
+      const err = await tc.ensureFails(
+        tc.pause()
+      );
+      assert(err.logs[2].includes("InvalidTokenMinterState"));
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
   });
 
-  it("setTokenController", async () => {
-    await tc.setTokenController(tc.tokenController.publicKey);
+  describe("unpause", () => {
+    it("fails when signer != pauser", async () => {
+      const err = await tc.ensureFails(
+        tc.unpause(tc.owner)
+      );
+      assert(err.logs[2].includes("InvalidAuthority"));
 
-    tokenMinterExpected.tokenController = tc.tokenController.publicKey;
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
 
-    const tokenMinter = await tc.program.account.tokenMinter.fetch(
-      tc.tokenMinter.publicKey
-    );
-    expect(JSON.stringify(tokenMinter)).to.equal(
-      JSON.stringify(tokenMinterExpected)
-    );
+    it("success", async () => {
+      await tc.unpause();
+
+      tokenMinterExpected.paused = false;
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
+
+    it("fails when already unpaused", async () => {
+      const err = await tc.ensureFails(
+        tc.unpause()
+      );
+      assert(err.logs[2].includes("InvalidTokenMinterState"));
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
   });
 
-  it("pause", async () => {
-    await tc.pause();
+  describe("addLocalToken", () => {
+    it("fails when signer != tokenController", async () => {
+      const err = await tc.ensureFails(
+        tc.addLocalToken(tc.pauser)
+      );
+      assert(err.logs[10].includes("InvalidAuthority"));
 
-    tokenMinterExpected.paused = true;
+      // Verify the local token doesn't exist
+      await tc.ensureFails(
+        tc.program.account.localToken.fetch(tc.localToken.publicKey)
+      );
+    });
 
-    const tokenMinter = await tc.program.account.tokenMinter.fetch(
-      tc.tokenMinter.publicKey
-    );
-    expect(JSON.stringify(tokenMinter)).to.equal(
-      JSON.stringify(tokenMinterExpected)
-    );
+    it("success", async () => {
+      await tc.addLocalToken();
+
+      localTokenExpected = {
+        custody: tc.custodyTokenAccount.publicKey,
+        mint: tc.localTokenMint.publicKey,
+        burnLimitPerMessage: new BN(0),
+        messagesSent: "0",
+        messagesReceived: "0",
+        amountSent: "0",
+        amountReceived: "0",
+        bump: tc.localToken.bump,
+        custodyBump: tc.custodyTokenAccount.bump,
+      };
+
+      const localTokenState = await tc.program.account.localToken.fetch(
+        tc.localToken.publicKey
+      );
+
+      expect(JSON.stringify(localTokenState)).to.equal(
+        JSON.stringify(localTokenExpected)
+      );
+    });
+
+    it("fails when local_token already exists with same localTokenMint", async () => {
+      const err = await tc.ensureFails(
+        tc.addLocalToken()
+      );
+      assert(err.logs[3].includes("already in use"));
+    });
   });
 
-  it("unpause", async () => {
-    await tc.unpause();
+  describe("removeLocalToken", () => {
+    it("success", async () => {
+      await tc.removeLocalToken();
+      await tc.ensureFails(
+        tc.program.account.localToken.fetch(tc.localToken.publicKey)
+      );
 
-    tokenMinterExpected.paused = false;
-
-    const tokenMinter = await tc.program.account.tokenMinter.fetch(
-      tc.tokenMinter.publicKey
-    );
-    expect(JSON.stringify(tokenMinter)).to.equal(
-      JSON.stringify(tokenMinterExpected)
-    );
+      await tc.addLocalToken();
+    });
   });
 
-  it("addLocalToken", async () => {
-    await tc.addLocalToken();
+  describe("setMaxBurnAmountPerMessage", () => {
+    it("success", async () => {
+      await tc.setMaxBurnAmountPerMessage(new BN(100));
 
-    localTokenExpected = {
-      custody: tc.custodyTokenAccount.publicKey,
-      mint: tc.localTokenMint.publicKey,
-      burnLimitPerMessage: new BN(0),
-      messagesSent: "0",
-      messagesReceived: "0",
-      amountSent: "0",
-      amountReceived: "0",
-      bump: tc.localToken.bump,
-      custodyBump: tc.custodyTokenAccount.bump,
-    };
+      localTokenExpected.burnLimitPerMessage = new BN(100);
 
-    const localTokenState = await tc.program.account.localToken.fetch(
-      tc.localToken.publicKey
-    );
-
-    expect(JSON.stringify(localTokenState)).to.equal(
-      JSON.stringify(localTokenExpected)
-    );
+      const localToken = await tc.program.account.localToken.fetch(
+        tc.localToken.publicKey
+      );
+      expect(JSON.stringify(localToken)).to.equal(
+        JSON.stringify(localTokenExpected)
+      );
+    });
   });
 
-  it("removeLocalToken", async () => {
-    await tc.removeLocalToken();
-    await tc.ensureFails(
-      tc.program.account.localToken.fetch(tc.localToken.publicKey)
-    );
+  describe("linkTokenPair", () => {
+    it("success", async () => {
+      await tc.linkTokenPair(remoteDomain, remoteToken);
 
-    await tc.addLocalToken();
+      const tokenPair = tc.findProgramAddress("token_pair", [
+        remoteDomain.toString(),
+        remoteToken,
+      ]);
+
+      tokenPairExpected = {
+        remoteDomain,
+        remoteToken: remoteToken,
+        localToken: tc.localToken.publicKey,
+        bump: tokenPair.bump,
+      };
+
+      const tokenPairState = await tc.program.account.tokenPair.fetch(
+        tokenPair.publicKey
+      );
+
+      expect(JSON.stringify(tokenPairState)).to.equal(
+        JSON.stringify(tokenPairExpected)
+      );
+    });
   });
 
-  it("setMaxBurnAmountPerMessage", async () => {
-    await tc.setMaxBurnAmountPerMessage(new BN(100));
+  describe("unlinkTokenPair", () => {
+    it("success", async () => {
+      await tc.unlinkTokenPair(remoteDomain, remoteToken);
 
-    localTokenExpected.burnLimitPerMessage = new BN(100);
+      const tokenPair = tc.findProgramAddress("token_pair", [
+        remoteDomain.toString(),
+        remoteToken,
+      ]);
+      await tc.ensureFails(
+        tc.program.account.tokenPair.fetch(tokenPair.publicKey)
+      );
 
-    const localToken = await tc.program.account.localToken.fetch(
-      tc.localToken.publicKey
-    );
-    expect(JSON.stringify(localToken)).to.equal(
-      JSON.stringify(localTokenExpected)
-    );
+      await tc.linkTokenPair(remoteDomain, remoteToken);
+    });
   });
 
-  it("linkTokenPair", async () => {
-    await tc.linkTokenPair(remoteDomain, remoteToken);
+  describe("depositForBurn", () => {
+    it("success", async () => {
+      const response = await tc.isNonceUsed(messageNonce);
+      expect(response).to.be.false;
 
-    const tokenPair = tc.findProgramAddress("token_pair", [
-      remoteDomain.toString(),
-      remoteToken,
-    ]);
-
-    tokenPairExpected = {
-      remoteDomain,
-      remoteToken: remoteToken,
-      localToken: tc.localToken.publicKey,
-      bump: tokenPair.bump,
-    };
-
-    const tokenPairState = await tc.program.account.tokenPair.fetch(
-      tokenPair.publicKey
-    );
-
-    expect(JSON.stringify(tokenPairState)).to.equal(
-      JSON.stringify(tokenPairExpected)
-    );
-  });
-
-  it("unlinkTokenPair", async () => {
-    await tc.unlinkTokenPair(remoteDomain, remoteToken);
-
-    const tokenPair = tc.findProgramAddress("token_pair", [
-      remoteDomain.toString(),
-      remoteToken,
-    ]);
-    await tc.ensureFails(
-      tc.program.account.tokenPair.fetch(tokenPair.publicKey)
-    );
-
-    await tc.linkTokenPair(remoteDomain, remoteToken);
-  });
-
-  it("depositForBurn", async () => {
-    const response = await tc.isNonceUsed(messageNonce);
-    expect(response).to.be.false;
-
-    // MessageSent event data is stored in a stand-alone account.
-    // A random Keypair needs to be provided so the account can be initialized by the contract.
-    // After the transaction is executed, the keypair is no longer needed and can be tossed away.
-    const messageSentEventAccountKeypair = Keypair.generate();
+      // MessageSent event data is stored in a stand-alone account.
+      // A random Keypair needs to be provided so the account can be initialized by the contract.
+      // After the transaction is executed, the keypair is no longer needed and can be tossed away.
+      const messageSentEventAccountKeypair = Keypair.generate();
 
     const signature = await tc.depositForBurn(
       new BN(20),
@@ -531,51 +698,53 @@ describe("token_messenger_minter_v2", () => {
       messageSentEventAccountKeypair
     );
 
-    const events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
+      const events = await tc.readEvents(signature, [
+        tc.program,
+        tc.messageTransmitterProgram,
+      ]);
 
-    const depositForBurn = tc.getEvent(
-      events,
-      tc.program.programId,
-      "depositForBurn"
-    );
-    const depositForBurnExpected = {
-      burnToken: tc.localTokenMint.publicKey,
-      amount: "20",
-      depositor,
-      mintRecipient,
-      destinationDomain: remoteDomain,
-      destinationTokenMessenger: recipient,
-      destinationCaller: PublicKey.default,
-      maxFee: "0",
-      minFinalityThreshold: 2000,
-      hookData: Buffer.from([]),
-    };
-    expect(JSON.stringify(depositForBurn)).to.equal(
-      JSON.stringify(depositForBurnExpected)
-    );
-
-    const messageSent =
-      await tc.messageTransmitterProgram.account.messageSent.fetch(
-        messageSentEventAccountKeypair.publicKey
+      const depositForBurn = tc.getEvent(
+        events,
+        tc.program.programId,
+        "depositForBurn"
       );
-    expect(messageSent.message.length).to.equal(376);
+      const depositForBurnExpected = {
+        burnToken: tc.localTokenMint.publicKey,
+        amount: "20",
+        depositor,
+        mintRecipient,
+        destinationDomain: remoteDomain,
+        destinationTokenMessenger: recipient,
+        destinationCaller: PublicKey.default,
+        maxFee: "0",
+        minFinalityThreshold: 2000,
+        hookData: Buffer.from([]),
+      };
+      expect(JSON.stringify(depositForBurn)).to.equal(
+        JSON.stringify(depositForBurnExpected)
+      );
 
-    const accountInfo = await tc.program.provider.connection.getAccountInfo(
-      messageSentEventAccountKeypair.publicKey
-    );
-    expect(JSON.stringify(accountInfo.owner)).to.equal(
-      JSON.stringify(tc.messageTransmitterProgram.programId)
-    );
-    expect(accountInfo.data.length).to.equal(420);
+      const messageSent =
+        await tc.messageTransmitterProgram.account.messageSent.fetch(
+          messageSentEventAccountKeypair.publicKey
+        );
+      expect(messageSent.message.length).to.equal(376);
 
-    expect(await tc.isNonceUsed(messageNonce)).to.be.false;
+      const accountInfo = await tc.program.provider.connection.getAccountInfo(
+        messageSentEventAccountKeypair.publicKey
+      ) as AccountInfo<Buffer>;
+      expect(JSON.stringify(accountInfo.owner)).to.equal(
+        JSON.stringify(tc.messageTransmitterProgram.programId)
+      );
+      expect(accountInfo.data.length).to.equal(420);
+
+      expect(await tc.isNonceUsed(messageNonce)).to.be.false;
+    });
   });
 
-  it("depositForBurnWithCaller", async () => {
-    const messageSentEventAccountKeypair = Keypair.generate();
+  describe("depositForBurnWithCaller", () => {
+    it("success", async () => {
+      const messageSentEventAccountKeypair = Keypair.generate();
 
     const signature = await tc.depositForBurn(
       new BN(20),
@@ -587,82 +756,85 @@ describe("token_messenger_minter_v2", () => {
       destinationCaller
     );
 
-    const events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
+      const events = await tc.readEvents(signature, [
+        tc.program,
+        tc.messageTransmitterProgram,
+      ]);
 
-    const depositForBurn = tc.getEvent(
-      events,
-      tc.program.programId,
-      "depositForBurn"
-    );
-    const depositForBurnExpected = {
-      burnToken: tc.localTokenMint.publicKey,
-      amount: "20",
-      depositor,
-      mintRecipient,
-      destinationDomain: remoteDomain,
-      destinationTokenMessenger: recipient,
-      destinationCaller,
-      maxFee: "0",
-      minFinalityThreshold: 2000,
-      hookData: Buffer.from([]),
-    };
-    expect(JSON.stringify(depositForBurn)).to.equal(
-      JSON.stringify(depositForBurnExpected)
-    );
-
-    const messageSent =
-      await tc.messageTransmitterProgram.account.messageSent.fetch(
-        messageSentEventAccountKeypair.publicKey
+      const depositForBurn = tc.getEvent(
+        events,
+        tc.program.programId,
+        "depositForBurn"
       );
-    expect(messageSent.message.length).to.equal(376);
+      const depositForBurnExpected = {
+        burnToken: tc.localTokenMint.publicKey,
+        amount: "20",
+        depositor,
+        mintRecipient,
+        destinationDomain: remoteDomain,
+        destinationTokenMessenger: recipient,
+        destinationCaller,
+        maxFee: "0",
+        minFinalityThreshold: 2000,
+        hookData: Buffer.from([]),
+      };
+      expect(JSON.stringify(depositForBurn)).to.equal(
+        JSON.stringify(depositForBurnExpected)
+      );
+
+      const messageSent =
+        await tc.messageTransmitterProgram.account.messageSent.fetch(
+          messageSentEventAccountKeypair.publicKey
+        );
+      expect(messageSent.message.length).to.equal(376);
+    });
   });
 
-  it("depositForBurnWithHook", async () => {
-    const messageSentEventAccountKeypair = Keypair.generate();
-    const hookData = Buffer.from("example hook data");
+  describe("depositForBurnWithHook", () => {
+    it("success", async () => {
+      const messageSentEventAccountKeypair = Keypair.generate();
+      const hookData = Buffer.from("example hook data");
 
-    const signature = await tc.depositForBurnWithHook(
-      new BN(20),
-      remoteDomain,
-      mintRecipient,
-      messageSentEventAccountKeypair,
-      hookData
-    );
-
-    const events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
-
-    const depositForBurn = tc.getEvent(
-      events,
-      tc.program.programId,
-      "depositForBurn"
-    );
-    const depositForBurnExpected = {
-      burnToken: tc.localTokenMint.publicKey,
-      amount: "20",
-      depositor,
-      mintRecipient,
-      destinationDomain: remoteDomain,
-      destinationTokenMessenger: recipient,
-      destinationCaller: PublicKey.default,
-      maxFee: "0",
-      minFinalityThreshold: 2000,
-      hookData,
-    };
-    expect(JSON.stringify(depositForBurn)).to.equal(
-      JSON.stringify(depositForBurnExpected)
-    );
-
-    const messageSent =
-      await tc.messageTransmitterProgram.account.messageSent.fetch(
-        messageSentEventAccountKeypair.publicKey
+      const signature = await tc.depositForBurnWithHook(
+        new BN(20),
+        remoteDomain,
+        mintRecipient,
+        messageSentEventAccountKeypair,
+        hookData
       );
-    expect(messageSent.message.length).to.equal(393);
+
+      const events = await tc.readEvents(signature, [
+        tc.program,
+        tc.messageTransmitterProgram,
+      ]);
+
+      const depositForBurn = tc.getEvent(
+        events,
+        tc.program.programId,
+        "depositForBurn"
+      );
+      const depositForBurnExpected = {
+        burnToken: tc.localTokenMint.publicKey,
+        amount: "20",
+        depositor,
+        mintRecipient,
+        destinationDomain: remoteDomain,
+        destinationTokenMessenger: recipient,
+        destinationCaller: PublicKey.default,
+        maxFee: "0",
+        minFinalityThreshold: 2000,
+        hookData,
+      };
+      expect(JSON.stringify(depositForBurn)).to.equal(
+        JSON.stringify(depositForBurnExpected)
+      );
+
+      const messageSent =
+        await tc.messageTransmitterProgram.account.messageSent.fetch(
+          messageSentEventAccountKeypair.publicKey
+        );
+      expect(messageSent.message.length).to.equal(393);
+    });
   });
 
   describe("Fees", () => {
@@ -678,12 +850,7 @@ describe("token_messenger_minter_v2", () => {
       );
 
       tokenMessengerExpected.feeRecipient = newFeeRecipient.publicKey;
-      const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-        tc.tokenMessenger.publicKey
-      );
-      expect(JSON.stringify(tokenMessenger)).to.equal(
-        JSON.stringify(tokenMessengerExpected)
-      );
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
       const expectedEvent = {
         newFeeRecipient: newFeeRecipient.publicKey,
@@ -718,12 +885,7 @@ describe("token_messenger_minter_v2", () => {
       );
 
       tokenMessengerExpected.minFeeController = newMinFeeController.publicKey;
-      const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-        tc.tokenMessenger.publicKey
-      );
-      expect(JSON.stringify(tokenMessenger)).to.equal(
-        JSON.stringify(tokenMessengerExpected)
-      );
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
       const expectedEvent = {
         newMinFeeController: newMinFeeController.publicKey,
@@ -744,7 +906,7 @@ describe("token_messenger_minter_v2", () => {
       const err = await tc.ensureFails(
         tc.setMinFeeController(newMinFeeController.publicKey, notOwner)
       );
-      assert(err.toString().includes("unknown signer"));
+      assert(err.toString().includes("InvalidAuthority"));
     });
 
     it("setMinFee should successfully set minFee", async () => {
@@ -759,12 +921,7 @@ describe("token_messenger_minter_v2", () => {
       );
 
       tokenMessengerExpected.minFee = newMinFee;
-      const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-        tc.tokenMessenger.publicKey
-      );
-      expect(JSON.stringify(tokenMessenger)).to.equal(
-        JSON.stringify(tokenMessengerExpected)
-      );
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
       const expectedEvent = {
         newMinFee: newMinFee,
@@ -782,7 +939,7 @@ describe("token_messenger_minter_v2", () => {
       const err = await tc.ensureFails(
         tc.setMinFee(newMinFee, notMinFeeController)
       );
-      assert(err.toString().includes("unknown signer"));
+      assert(err.toString().includes("InvalidAuthority"));
     });
 
     it("setMinFee should fail on setting invalid minFee", async () => {
@@ -860,12 +1017,7 @@ describe("token_messenger_minter_v2", () => {
       );
 
       tokenMessengerExpected.minFee = newMinFee;
-      const tokenMessenger = await tc.program.account.tokenMessenger.fetch(
-        tc.tokenMessenger.publicKey
-      );
-      expect(JSON.stringify(tokenMessenger)).to.equal(
-        JSON.stringify(tokenMessengerExpected)
-      );
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
 
       const expectedEvent = {
         newMinFee: newMinFee,
@@ -876,394 +1028,394 @@ describe("token_messenger_minter_v2", () => {
     });
   })
 
-  it("receiveMessage - finalized", async () => {
-    // fund custody
-    await spl.mintToChecked(
-      tc.provider.connection,
-      tc.owner,
-      tc.localTokenMint.publicKey,
-      tc.custodyTokenAccount.publicKey,
-      tc.owner,
-      messageAmount,
-      9
-    );
+  describe("receiveMessage - finalized", () => {
+    it("finalized - success", async () => {
+      // fund custody
+      await spl.mintToChecked(
+        tc.provider.connection,
+        tc.owner,
+        tc.localTokenMint.publicKey,
+        tc.custodyTokenAccount.publicKey,
+        tc.owner,
+        messageAmount,
+        9
+      );
 
-    const signature = await tc.receiveMessage(
-      remoteDomain,
-      remoteToken,
-      messageNonce,
-      message,
-      tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2])
-    );
-
-    // Receiving the same message should fail as nonce is already used
-    await tc.ensureFails(
-      tc.receiveMessage(
+      const signature = await tc.receiveMessage(
         remoteDomain,
         remoteToken,
         messageNonce,
         message,
         tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2])
-      )
+      );
+
+      // Receiving the same message should fail as nonce is already used
+      await tc.ensureFails(
+        tc.receiveMessage(
+          remoteDomain,
+          remoteToken,
+          messageNonce,
+          message,
+          tc.attest(message, [attesterPrivateKey1, attesterPrivateKey2])
+        )
+      );
+
+      const events = await tc.readEvents(signature, [
+        tc.program,
+        tc.messageTransmitterProgram,
+      ]);
+
+      const messageReceived = tc.getEvent(
+        events,
+        tc.messageTransmitterProgram.programId,
+        "messageReceived"
+      );
+
+      const messageReceivedExpected = {
+        caller: tc.provider.wallet.publicKey,
+        sourceDomain: messageSourceDomain,
+        nonce: Array.from(messageNonce),
+        sender,
+        finalityThresholdExecuted: 2000,
+        messageBody: tc.createBurnMessageBody(
+          messageBodyVersion,
+          remoteToken,
+          mintRecipient,
+          depositor,
+          messageAmount,
+          maxFee,
+          hookData
+        ),
+      };
+      expect(JSON.stringify(messageReceived)).to.equal(
+        JSON.stringify(messageReceivedExpected)
+      );
+
+      const mintAndWithdraw = tc.getEvent(
+        events,
+        tc.program.programId,
+        "mintAndWithdraw"
+      );
+      const mintAndWithdrawExpected = {
+        mintRecipient,
+        amount: messageAmount.toString(),
+        mintToken: tc.localTokenMint.publicKey,
+      feeCollected: "0",
+      };
+      expect(JSON.stringify(mintAndWithdraw)).to.equal(
+        JSON.stringify(mintAndWithdrawExpected)
+      );
+
+      localTokenExpected = {
+        custody: tc.custodyTokenAccount.publicKey,
+        mint: tc.localTokenMint.publicKey,
+        burnLimitPerMessage: "100",
+        messagesSent: "4",
+        messagesReceived: "2",
+        amountSent: "80",
+        amountReceived: "200000000",
+        bump: tc.localToken.bump,
+        custodyBump: tc.custodyTokenAccount.bump,
+      };
+
+      const localTokenState = await tc.program.account.localToken.fetch(
+        tc.localToken.publicKey
+      );
+
+      expect(JSON.stringify(localTokenState)).to.equal(
+        JSON.stringify(localTokenExpected)
+      );
+    });
+
+    it("unfinalized - success", async () => {
+      // fund custody
+      await spl.mintToChecked(
+        tc.provider.connection,
+        tc.owner,
+        tc.localTokenMint.publicKey,
+        tc.custodyTokenAccount.publicKey,
+        tc.owner,
+        messageAmount,
+        9
+      );
+
+      const finalityThresholdExecuted = 1000;
+      let messageNonce2 = Buffer.from(
+      "a99ca1348591db5efaafe71d20f08bc97f4ca01c2dec23a94736a0bb9f21c3f0",
+      "hex"
     );
-
-    const events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
-
-    const messageReceived = tc.getEvent(
-      events,
-      tc.messageTransmitterProgram.programId,
-      "messageReceived"
-    );
-
-    const messageReceivedExpected = {
-      caller: tc.provider.wallet.publicKey,
-      sourceDomain: messageSourceDomain,
-      nonce: Array.from(messageNonce),
-      sender,
-      finalityThresholdExecuted: 2000,
-      messageBody: tc.createBurnMessageBody(
+      const unfinalizedMessage = tc.createBurnMessage(
+        messageVersion,
+        messageSourceDomain,
+        remoteDomain,
+        messageNonce2,
+        sender,
+        recipient,
+        destinationCaller,
+        minFinalityThreshold,
         messageBodyVersion,
         remoteToken,
         mintRecipient,
         depositor,
         messageAmount,
         maxFee,
-        hookData
-      ),
-    };
-    expect(JSON.stringify(messageReceived)).to.equal(
-      JSON.stringify(messageReceivedExpected)
-    );
+        hookData,
+        finalityThresholdExecuted
+      );
 
-    const mintAndWithdraw = tc.getEvent(
-      events,
-      tc.program.programId,
-      "mintAndWithdraw"
-    );
-    const mintAndWithdrawExpected = {
-      mintRecipient,
-      amount: messageAmount.toString(),
-      mintToken: tc.localTokenMint.publicKey,
-      feeCollected: "0",
-    };
-    expect(JSON.stringify(mintAndWithdraw)).to.equal(
-      JSON.stringify(mintAndWithdrawExpected)
-    );
-
-    localTokenExpected = {
-      custody: tc.custodyTokenAccount.publicKey,
-      mint: tc.localTokenMint.publicKey,
-      burnLimitPerMessage: "100",
-      messagesSent: "3",
-      messagesReceived: "2",
-      amountSent: "60",
-      amountReceived: "200000000",
-      bump: tc.localToken.bump,
-      custodyBump: tc.custodyTokenAccount.bump,
-    };
-
-    const localTokenState = await tc.program.account.localToken.fetch(
-      tc.localToken.publicKey
-    );
-
-    expect(JSON.stringify(localTokenState)).to.equal(
-      JSON.stringify(localTokenExpected)
-    );
-  });
-
-  it("receiveMessage - unfinalized", async () => {
-    // fund custody
-    await spl.mintToChecked(
-      tc.provider.connection,
-      tc.owner,
-      tc.localTokenMint.publicKey,
-      tc.custodyTokenAccount.publicKey,
-      tc.owner,
-      messageAmount,
-      9
-    );
-
-    const finalityThresholdExecuted = 1000;
-    let messageNonce2 = Buffer.from(
-      "a99ca1348591db5efaafe71d20f08bc97f4ca01c2dec23a94736a0bb9f21c3f0",
-      "hex"
-    );
-    const unfinalizedMessage = tc.createBurnMessage(
-      messageVersion,
-      messageSourceDomain,
-      remoteDomain,
-      messageNonce2,
-      sender,
-      recipient,
-      destinationCaller,
-      minFinalityThreshold,
-      messageBodyVersion,
-      remoteToken,
-      mintRecipient,
-      depositor,
-      messageAmount,
-      maxFee,
-      hookData,
-      finalityThresholdExecuted
-    );
-
-    const signature = await tc.receiveMessage(
-      remoteDomain,
-      remoteToken,
-      messageNonce2,
-      unfinalizedMessage,
-      tc.attest(unfinalizedMessage, [attesterPrivateKey1, attesterPrivateKey2])
-    );
-
-    // Receiving the same message should fail as nonce is already used
-    await tc.ensureFails(
-      tc.receiveMessage(
+      const signature = await tc.receiveMessage(
         remoteDomain,
         remoteToken,
         messageNonce2,
         unfinalizedMessage,
-        tc.attest(unfinalizedMessage, [
+        tc.attest(unfinalizedMessage, [attesterPrivateKey1, attesterPrivateKey2])
+      );
+
+      // Receiving the same message should fail as nonce is already used
+      await tc.ensureFails(
+        tc.receiveMessage(
+          remoteDomain,
+          remoteToken,
+          messageNonce2,
+          unfinalizedMessage,
+          tc.attest(unfinalizedMessage, [
           attesterPrivateKey1,
           attesterPrivateKey2,
         ])
-      )
-    );
-
-    const events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
-
-    const messageReceived = tc.getEvent(
-      events,
-      tc.messageTransmitterProgram.programId,
-      "messageReceived"
-    );
-
-    const messageReceivedExpected = {
-      caller: tc.provider.wallet.publicKey,
-      sourceDomain: messageSourceDomain,
-      nonce: Array.from(messageNonce2),
-      sender,
-      finalityThresholdExecuted,
-      messageBody: tc.createBurnMessageBody(
-        messageBodyVersion,
-        remoteToken,
-        mintRecipient,
-        depositor,
-        messageAmount,
-        maxFee,
-        hookData
-      ),
-    };
-    expect(JSON.stringify(messageReceived)).to.equal(
-      JSON.stringify(messageReceivedExpected)
-    );
-
-    const mintAndWithdraw = tc.getEvent(
-      events,
-      tc.program.programId,
-      "mintAndWithdraw"
-    );
-    const mintAndWithdrawExpected = {
-      mintRecipient,
-      amount: messageAmount.toString(),
-      mintToken: tc.localTokenMint.publicKey,
-      feeCollected: "0",
-    };
-    expect(JSON.stringify(mintAndWithdraw)).to.equal(
-      JSON.stringify(mintAndWithdrawExpected)
-    );
-
-    localTokenExpected = {
-      custody: tc.custodyTokenAccount.publicKey,
-      mint: tc.localTokenMint.publicKey,
-      burnLimitPerMessage: "100",
-      messagesSent: "3",
-      messagesReceived: "4",
-      amountSent: "60",
-      amountReceived: "400000000",
-      bump: tc.localToken.bump,
-      custodyBump: tc.custodyTokenAccount.bump,
-    };
-
-    const localTokenState = await tc.program.account.localToken.fetch(
-      tc.localToken.publicKey
-    );
-
-    expect(JSON.stringify(localTokenState)).to.equal(
-      JSON.stringify(localTokenExpected)
-    );
-  });
-
-  it("endToEnd", async () => {
-    // update attesters
-    const privateKey1 = Keypair.generate().publicKey.toBuffer();
-    const publicKey1 = ethutil.privateToAddress(privateKey1);
-    const privateKey2 = Keypair.generate().publicKey.toBuffer();
-    const publicKey2 = ethutil.privateToAddress(privateKey2);
-    const newAttester1 = new PublicKey(publicKey1);
-    const newAttester2 = new PublicKey(publicKey2);
-
-    await tc.enableAttester(newAttester1);
-    await tc.enableAttester(newAttester2);
-    await tc.disableAttester(attester1);
-    await tc.disableAttester(attester2);
-
-    // deposit for burn
-    const messageNonce = Buffer.from(
-      "1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8",
-      "hex"
-    );
-    expect(await tc.isNonceUsed(messageNonce)).to.be.false;
-    const messageAmount = 20;
-    const messageSentEventAccountKeypair = Keypair.generate();
-
-    let signature = await tc.depositForBurn(
-      new BN(messageAmount),
-      remoteDomain,
-      mintRecipient,
-      messageSentEventAccountKeypair,
-      undefined,
-      new BN(1),
-      destinationCaller
-    );
-
-    let events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
-
-    // validate deposit for burn
-    const depositForBurn = tc.getEvent(
-      events,
-      tc.program.programId,
-      "depositForBurn"
-    );
-    const depositForBurnExpected = {
-      burnToken: tc.localTokenMint.publicKey,
-      amount: messageAmount.toString(),
-      depositor,
-      mintRecipient,
-      destinationDomain: remoteDomain,
-      destinationTokenMessenger: recipient,
-      destinationCaller,
-      maxFee: "1",
-      minFinalityThreshold: 2000,
-      hookData: Buffer.from([]),
-    };
-    expect(JSON.stringify(depositForBurn)).to.equal(
-      JSON.stringify(depositForBurnExpected)
-    );
-
-    const messageSent =
-      await tc.messageTransmitterProgram.account.messageSent.fetch(
-        messageSentEventAccountKeypair.publicKey
+        )
       );
 
-    expect(messageSent.message.length).to.equal(376);
-    const messageBytes = messageSent.message;
-    // Replace 32 bytes in messageBytes starting at index 12 with messageNonce
-    messageNonce.copy(messageBytes, 12, 0, 32);
-    // write extra fields to message
-    const finalityThresholdExecuted = 2000;
-    const feeExecuted = 1;
-    const expirationBlock = 0;
-    messageBytes.writeUInt32BE(finalityThresholdExecuted, 144);
-    messageBytes.write(
-      padStartZero(BigInt(feeExecuted).toString(16), 64),
-      148 + 164,
-      32,
-      "hex"
-    );
-    messageBytes.write(
-      padStartZero(BigInt(expirationBlock).toString(16), 64),
-      148 + 196,
-      32,
-      "hex"
-    );
+      const events = await tc.readEvents(signature, [
+        tc.program,
+        tc.messageTransmitterProgram,
+      ]);
 
-    // sign the message
-    const messageHash = ethutil.keccak256(messageBytes);
-    const signedMessage1 = ethutil.ecsign(messageHash, privateKey1);
-    const signedMessageBytes1 = tc.hexToBytes(
-      ethutil
-        .toRpcSig(signedMessage1.v, signedMessage1.r, signedMessage1.s)
-        .slice(2)
-    );
+      const messageReceived = tc.getEvent(
+        events,
+        tc.messageTransmitterProgram.programId,
+        "messageReceived"
+      );
 
-    const signedMessage2 = ethutil.ecsign(messageHash, privateKey2);
-    const signedMessageBytes2 = tc.hexToBytes(
-      ethutil
-        .toRpcSig(signedMessage2.v, signedMessage2.r, signedMessage2.s)
-        .slice(2)
-    );
+      const messageReceivedExpected = {
+        caller: tc.provider.wallet.publicKey,
+        sourceDomain: messageSourceDomain,
+        nonce: Array.from(messageNonce2),
+        sender,
+        finalityThresholdExecuted,
+        messageBody: tc.createBurnMessageBody(
+          messageBodyVersion,
+          remoteToken,
+          mintRecipient,
+          depositor,
+          messageAmount,
+          maxFee,
+          hookData
+        ),
+      };
+      expect(JSON.stringify(messageReceived)).to.equal(
+        JSON.stringify(messageReceivedExpected)
+      );
 
-    // contract expects pubkeys to be ordered
-    let combinedSignedMessageBytes;
-    let flip = false;
-    for (let i = 0; i < Math.min(publicKey1.length, publicKey2.length); ++i) {
-      if (publicKey2[i] < publicKey1[i]) {
-        flip = true;
-        break;
-      } else if (publicKey2[i] > publicKey1[i]) {
-        break;
+      const mintAndWithdraw = tc.getEvent(
+        events,
+        tc.program.programId,
+        "mintAndWithdraw"
+      );
+      const mintAndWithdrawExpected = {
+        mintRecipient,
+        amount: messageAmount.toString(),
+        mintToken: tc.localTokenMint.publicKey,
+      feeCollected: "0",
+      };
+      expect(JSON.stringify(mintAndWithdraw)).to.equal(
+        JSON.stringify(mintAndWithdrawExpected)
+      );
+
+      localTokenExpected = {
+        custody: tc.custodyTokenAccount.publicKey,
+        mint: tc.localTokenMint.publicKey,
+        burnLimitPerMessage: "100",
+        messagesSent: "4",
+        messagesReceived: "4",
+        amountSent: "80",
+        amountReceived: "400000000",
+        bump: tc.localToken.bump,
+        custodyBump: tc.custodyTokenAccount.bump,
+      };
+
+      const localTokenState = await tc.program.account.localToken.fetch(
+        tc.localToken.publicKey
+      );
+
+      expect(JSON.stringify(localTokenState)).to.equal(
+        JSON.stringify(localTokenExpected)
+      );
+    });
+  });
+
+  describe("endToEnd", () => {
+    it("success", async () => {
+      // update attesters
+      const privateKey1 = Keypair.generate().publicKey.toBuffer();
+      const publicKey1 = ethutil.privateToAddress(privateKey1);
+      const privateKey2 = Keypair.generate().publicKey.toBuffer();
+      const publicKey2 = ethutil.privateToAddress(privateKey2);
+      const newAttester1 = new PublicKey(publicKey1);
+      const newAttester2 = new PublicKey(publicKey2);
+
+      await tc.enableAttester(newAttester1);
+      await tc.enableAttester(newAttester2);
+      await tc.disableAttester(attester1);
+      await tc.disableAttester(attester2);
+
+      // deposit for burn
+      const messageNonce = Buffer.from("1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8", "hex");
+      expect(await tc.isNonceUsed(messageNonce)).to.be.false;
+      const messageAmount = 20;
+      const messageSentEventAccountKeypair = Keypair.generate();
+
+      let signature = await tc.depositForBurn(
+        new BN(messageAmount),
+        remoteDomain,
+        mintRecipient,
+        messageSentEventAccountKeypair,
+        undefined,
+        new BN(1),
+        destinationCaller,
+      );
+
+      let events = await tc.readEvents(signature, [
+        tc.program,
+        tc.messageTransmitterProgram,
+      ]);
+
+      // validate deposit for burn
+      const depositForBurn = tc.getEvent(
+        events,
+        tc.program.programId,
+        "depositForBurn"
+      );
+      const depositForBurnExpected = {
+        burnToken: tc.localTokenMint.publicKey,
+        amount: messageAmount.toString(),
+        depositor,
+        mintRecipient,
+        destinationDomain: remoteDomain,
+        destinationTokenMessenger: recipient,
+        destinationCaller,
+        maxFee: "1",
+        minFinalityThreshold: 2000,
+        hookData: Buffer.from([]),
+      };
+      expect(JSON.stringify(depositForBurn)).to.equal(
+        JSON.stringify(depositForBurnExpected)
+      );
+
+      const messageSent =
+        await tc.messageTransmitterProgram.account.messageSent.fetch(
+          messageSentEventAccountKeypair.publicKey
+        );
+
+      expect(messageSent.message.length).to.equal(376);
+      const messageBytes = messageSent.message;
+      // Replace 32 bytes in messageBytes starting at index 12 with messageNonce
+      messageNonce.copy(messageBytes, 12, 0, 32);
+      // write extra fields to message
+      const finalityThresholdExecuted = 2000;
+      const feeExecuted = 1;
+      const expirationBlock = 0;
+      messageBytes.writeUInt32BE(finalityThresholdExecuted, 144);
+      messageBytes.write(
+        padStartZero(BigInt(feeExecuted).toString(16), 64),
+        148 + 164,
+        32,
+        "hex"
+      );
+      messageBytes.write(
+        padStartZero(BigInt(expirationBlock).toString(16), 64),
+        148 + 196,
+        32,
+        "hex"
+      );
+
+      // sign the message
+      const messageHash = ethutil.keccak256(messageBytes);
+      const signedMessage1 = ethutil.ecsign(messageHash, privateKey1);
+      const signedMessageBytes1 = tc.hexToBytes(
+        ethutil
+          .toRpcSig(signedMessage1.v, signedMessage1.r, signedMessage1.s)
+          .slice(2)
+      );
+
+      const signedMessage2 = ethutil.ecsign(messageHash, privateKey2);
+      const signedMessageBytes2 = tc.hexToBytes(
+        ethutil
+          .toRpcSig(signedMessage2.v, signedMessage2.r, signedMessage2.s)
+          .slice(2)
+      );
+
+      // contract expects pubkeys to be ordered
+      let combinedSignedMessageBytes;
+      let flip = false;
+      for (let i = 0; i < Math.min(publicKey1.length, publicKey2.length); ++i) {
+        if (publicKey2[i] < publicKey1[i]) {
+          flip = true;
+          break;
+        } else if (publicKey2[i] > publicKey1[i]) {
+          break;
+        }
       }
-    }
-    if (flip) {
-      combinedSignedMessageBytes =
-        signedMessageBytes2.concat(signedMessageBytes1);
-    } else {
-      combinedSignedMessageBytes =
-        signedMessageBytes1.concat(signedMessageBytes2);
-    }
+      if (flip) {
+        combinedSignedMessageBytes =
+          signedMessageBytes2.concat(signedMessageBytes1);
+      } else {
+        combinedSignedMessageBytes =
+          signedMessageBytes1.concat(signedMessageBytes2);
+      }
 
-    // fund custody
-    await tc.linkTokenPair(remoteDomain, tc.localTokenMint.publicKey);
-    await spl.mintToChecked(
-      tc.provider.connection,
-      tc.owner,
-      tc.localTokenMint.publicKey,
-      tc.custodyTokenAccount.publicKey,
-      tc.owner,
-      messageAmount,
-      9
-    );
+      // fund custody
+      await tc.linkTokenPair(remoteDomain, tc.localTokenMint.publicKey);
+      await spl.mintToChecked(
+        tc.provider.connection,
+        tc.owner,
+        tc.localTokenMint.publicKey,
+        tc.custodyTokenAccount.publicKey,
+        tc.owner,
+        messageAmount,
+        9
+      );
 
-    // receive message
-    signature = await tc.receiveMessage(
-      remoteDomain,
-      tc.localTokenMint.publicKey,
-      messageNonce,
-      messageBytes,
-      combinedSignedMessageBytes
-    );
+      // receive message
+      signature = await tc.receiveMessage(
+        remoteDomain,
+        tc.localTokenMint.publicKey,
+        messageNonce,
+        messageBytes,
+        combinedSignedMessageBytes
+      );
 
-    events = await tc.readEvents(signature, [
-      tc.program,
-      tc.messageTransmitterProgram,
-    ]);
+      events = await tc.readEvents(signature, [
+        tc.program,
+        tc.messageTransmitterProgram,
+      ]);
 
-    // validate received message
-    const messageReceived = tc.getEvent(
-      events,
-      tc.messageTransmitterProgram.programId,
-      "messageReceived"
-    );
-    const messageReceivedExpected = {
-      caller: tc.provider.wallet.publicKey,
-      sourceDomain: remoteDomain,
-      nonce: Array.from(messageNonce),
-      sender,
-      finalityThresholdExecuted: 2000,
-      messageBody: messageReceived.messageBody,
-    };
-    expect(JSON.stringify(messageReceived)).to.equal(
-      JSON.stringify(messageReceivedExpected)
-    );
+      // validate received message
+      const messageReceived = tc.getEvent(
+        events,
+        tc.messageTransmitterProgram.programId,
+        "messageReceived"
+      );
+      const messageReceivedExpected = {
+        caller: tc.provider.wallet.publicKey,
+        sourceDomain: remoteDomain,
+        nonce: Array.from(messageNonce),
+        sender,
+        finalityThresholdExecuted: 2000,
+        messageBody: messageReceived.messageBody,
+      };
+      expect(JSON.stringify(messageReceived)).to.equal(
+        JSON.stringify(messageReceivedExpected)
+      );
 
     const mintAndWithdraw = tc.getEvent(
       events,
@@ -1280,90 +1432,93 @@ describe("token_messenger_minter_v2", () => {
       JSON.stringify(mintAndWithdrawExpected)
     );
 
-    localTokenExpected = {
-      custody: tc.custodyTokenAccount.publicKey,
-      mint: tc.localTokenMint.publicKey,
-      burnLimitPerMessage: "100",
-      messagesSent: "4",
-      messagesReceived: "6",
-      amountSent: "80",
-      amountReceived: "400000020",
-      bump: tc.localToken.bump,
-      custodyBump: tc.custodyTokenAccount.bump,
-    };
+      localTokenExpected = {
+        custody: tc.custodyTokenAccount.publicKey,
+        mint: tc.localTokenMint.publicKey,
+        burnLimitPerMessage: "100",
+        messagesSent: "5",
+        messagesReceived: "6",
+        amountSent: "100",
+        amountReceived: "400000020",
+        bump: tc.localToken.bump,
+        custodyBump: tc.custodyTokenAccount.bump,
+      };
 
-    const localTokenState = await tc.program.account.localToken.fetch(
-      tc.localToken.publicKey
-    );
+      const localTokenState = await tc.program.account.localToken.fetch(
+        tc.localToken.publicKey
+      );
 
-    expect(JSON.stringify(localTokenState)).to.equal(
-      JSON.stringify(localTokenExpected)
-    );
+      expect(JSON.stringify(localTokenState)).to.equal(
+        JSON.stringify(localTokenExpected)
+      );
 
-    // check if nonce flagged as used
-    expect(await tc.isNonceUsed(messageNonce)).to.be.true;
+      // check if nonce flagged as used
+      expect(await tc.isNonceUsed(messageNonce)).to.be.true;
 
-    // reclaim rent SOL
-    const initialBalance = await tc.provider.connection.getBalance(
-      tc.user.publicKey
-    );
+      // reclaim rent SOL
+      const initialBalance = await tc.provider.connection.getBalance(
+        tc.user.publicKey
+      );
 
-    await tc.ensureFails(
-      tc.reclaimEventAccount(
-        tc.owner,
+      await tc.ensureFails(
+        tc.reclaimEventAccount(
+          tc.owner,
+          combinedSignedMessageBytes,
+          messageBytes,
+          messageSentEventAccountKeypair.publicKey
+        )
+      );
+      await tc.reclaimEventAccount(
+        tc.user,
         combinedSignedMessageBytes,
         messageBytes,
         messageSentEventAccountKeypair.publicKey
-      )
-    );
-    await tc.reclaimEventAccount(
-      tc.user,
-      combinedSignedMessageBytes,
-      messageBytes,
-      messageSentEventAccountKeypair.publicKey
-    );
+      );
 
-    await tc.ensureFails(
-      tc.messageTransmitterProgram.account.messageSent.fetch(
-        messageSentEventAccountKeypair.publicKey
-      )
-    );
+      await tc.ensureFails(
+        tc.messageTransmitterProgram.account.messageSent.fetch(
+          messageSentEventAccountKeypair.publicKey
+        )
+      );
 
-    expect(
-      await tc.provider.connection.getBalance(tc.user.publicKey)
-    ).to.greaterThan(initialBalance);
+      expect(
+        await tc.provider.connection.getBalance(tc.user.publicKey)
+      ).to.greaterThan(initialBalance);
+    });
   });
 
-  it("burnTokenCustody", async () => {
-    expect(await tc.getBalance(tc.custodyTokenAccount.publicKey)).to.be.equal(
-      0
-    );
+  describe("burnTokenCustody", () => {
+    it("success", async () => {
+      expect(await tc.getBalance(tc.custodyTokenAccount.publicKey)).to.be.equal(
+        0
+      );
 
-    // fund custody
-    await spl.mintToChecked(
-      tc.provider.connection,
-      tc.owner,
-      tc.localTokenMint.publicKey,
-      tc.custodyTokenAccount.publicKey,
-      tc.owner,
-      1000,
-      9
-    );
+      // fund custody
+      await spl.mintToChecked(
+        tc.provider.connection,
+        tc.owner,
+        tc.localTokenMint.publicKey,
+        tc.custodyTokenAccount.publicKey,
+        tc.owner,
+        1000,
+        9
+      );
 
-    const initialBalance = await tc.getBalance(
-      tc.custodyTokenAccount.publicKey
-    );
-    expect(initialBalance).to.be.equal(1000);
+      const initialBalance = await tc.getBalance(
+        tc.custodyTokenAccount.publicKey
+      );
+      expect(initialBalance).to.be.equal(1000);
 
-    await tc.burnTokenCustody(new BN(initialBalance / 2));
+      await tc.burnTokenCustody(new BN(initialBalance / 2));
 
-    let newBalance = await tc.getBalance(tc.custodyTokenAccount.publicKey);
-    expect(newBalance).to.be.equal(initialBalance - initialBalance / 2);
+      let newBalance = await tc.getBalance(tc.custodyTokenAccount.publicKey);
+      expect(newBalance).to.be.equal(initialBalance - initialBalance / 2);
 
-    let u64Max = new BN(2).pow(new BN(64)).sub(new BN(1)); // u64::MAX
-    await tc.burnTokenCustody(u64Max);
+      let u64Max = new BN(2).pow(new BN(64)).sub(new BN(1)); // u64::MAX
+      await tc.burnTokenCustody(u64Max);
 
-    newBalance = await tc.getBalance(tc.custodyTokenAccount.publicKey);
-    expect(newBalance).to.be.equal(0);
+      newBalance = await tc.getBalance(tc.custodyTokenAccount.publicKey);
+      expect(newBalance).to.be.equal(0);
+    });
   });
 });

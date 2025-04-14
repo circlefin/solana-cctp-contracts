@@ -21,7 +21,6 @@
 use {
     crate::{
         token_messenger_v2::{
-            self,
             burn_message::BurnMessage,
             error::TokenMessengerError,
             events::MintAndWithdraw,

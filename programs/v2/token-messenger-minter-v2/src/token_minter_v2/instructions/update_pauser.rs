@@ -55,6 +55,11 @@ pub fn update_pauser(ctx: Context<UpdatePauserContext>, params: &UpdatePauserPar
         Pubkey::default(),
         TokenMinterError::InvalidPauser
     );
+    require_keys_neq!(
+        params.new_pauser,
+        ctx.accounts.token_minter.pauser,
+        TokenMinterError::InvalidPauser
+    );
 
     ctx.accounts.token_minter.pauser = params.new_pauser;
 

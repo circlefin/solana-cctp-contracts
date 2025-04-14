@@ -43,6 +43,11 @@ pub struct UnpauseParams {}
 
 // Instruction handler
 pub fn unpause(ctx: Context<UnpauseContext>, _params: &UnpauseParams) -> Result<()> {
+    require!(
+        ctx.accounts.token_minter.paused,
+        TokenMinterError::InvalidTokenMinterState
+    );
+
     ctx.accounts.token_minter.paused = false;
 
     emit_cpi!(Unpause {});

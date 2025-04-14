@@ -29,6 +29,7 @@ import * as ethutil from "ethereumjs-util";
 import { MessageTransmitterV2 } from "../../target/types/message_transmitter_v2";
 import { TokenMessengerMinterV2 } from "../../target/types/token_messenger_minter_v2";
 import * as utils from "../utils";
+import { expect } from "chai";
 
 const SIGNATURE_LENGTH = 65;
 
@@ -362,37 +363,32 @@ export class TestClient {
       .rpc();
   };
 
-  transferOwnership = async (newOwner: PublicKey) => {
-    const currentOwner = (
-      await this.program.account.tokenMessenger.fetch(
-        this.tokenMessenger.publicKey
-      )
-    ).owner;
-
+  transferOwnership = async (newOwner: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .transferOwnership({ newOwner })
       .accounts({
-        owner: currentOwner,
+        owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
-      .signers(currentOwner == this.owner.publicKey ? [this.owner] : [])
+      .signers([signer])
       .rpc();
   };
 
-  acceptOwnership = async (newOwner: Keypair) => {
+  acceptOwnership = async (signer = this.owner) => {
     return await this.program.methods
       .acceptOwnership({})
       .accounts({
-        pendingOwner: this.owner.publicKey,
+        pendingOwner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
-      .signers([newOwner])
+      .signers([signer])
       .rpc();
   };
 
   addRemoteTokenMessenger = async (
     domain: number,
-    tokenMessenger: PublicKey
+    tokenMessenger: PublicKey,
+    signer = this.owner
   ) => {
     const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
@@ -401,16 +397,16 @@ export class TestClient {
     return await this.program.methods
       .addRemoteTokenMessenger({ domain, tokenMessenger })
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         remoteTokenMessenger,
         systemProgram: SystemProgram.programId,
       })
-      .signers([this.owner])
+      .signers([signer])
       .rpc();
   };
 
-  removeRemoteTokenMessenger = async (domain: number) => {
+  removeRemoteTokenMessenger = async (domain: number, signer = this.owner) => {
     const remoteTokenMessenger = this.findProgramAddress(
       "remote_token_messenger",
       [domain.toString()]
@@ -418,65 +414,65 @@ export class TestClient {
     return await this.program.methods
       .removeRemoteTokenMessenger({})
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         remoteTokenMessenger,
       })
-      .signers([this.owner])
+      .signers([signer])
       .rpc();
   };
 
-  updatePauser = async (newPauser: PublicKey) => {
+  updatePauser = async (newPauser: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .updatePauser({ newPauser })
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
       })
-      .signers([this.owner])
+      .signers([signer])
       .rpc();
   };
 
-  setTokenController = async (tokenController: PublicKey) => {
+  setTokenController = async (tokenController: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .setTokenController({ tokenController })
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
       })
-      .signers([this.owner])
+      .signers([signer])
       .rpc();
   };
 
-  pause = async () => {
+  pause = async (signer = this.pauser) => {
     return await this.program.methods
       .pause({})
       .accounts({
-        pauser: this.pauser.publicKey,
+        pauser: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
       })
-      .signers([this.pauser])
+      .signers([signer])
       .rpc();
   };
 
-  unpause = async () => {
+  unpause = async (signer = this.pauser) => {
     return await this.program.methods
       .unpause({})
       .accounts({
-        pauser: this.pauser.publicKey,
+        pauser: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
       })
-      .signers([this.pauser])
+      .signers([signer])
       .rpc();
   };
 
-  addLocalToken = async () => {
+  addLocalToken = async (signer = this.tokenController) => {
     return await this.program.methods
       .addLocalToken({})
       .accounts({
-        tokenController: this.tokenController.publicKey,
+        tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         localToken: this.localToken.publicKey,
         custodyTokenAccount: this.custodyTokenAccount.publicKey,
@@ -484,37 +480,37 @@ export class TestClient {
         tokenProgram: spl.TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
-      .signers([this.tokenController])
+      .signers([signer])
       .rpc();
   };
 
-  removeLocalToken = async () => {
+  removeLocalToken = async (signer = this.tokenController) => {
     return await this.program.methods
       .removeLocalToken({})
       .accounts({
-        tokenController: this.tokenController.publicKey,
+        tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         localToken: this.localToken.publicKey,
         custodyTokenAccount: this.custodyTokenAccount.publicKey,
         tokenProgram: spl.TOKEN_PROGRAM_ID,
       })
-      .signers([this.tokenController])
+      .signers([signer])
       .rpc();
   };
 
-  setMaxBurnAmountPerMessage = async (burnLimitPerMessage: BN) => {
+  setMaxBurnAmountPerMessage = async (burnLimitPerMessage: BN, signer = this.tokenController) => {
     return await this.program.methods
       .setMaxBurnAmountPerMessage({ burnLimitPerMessage })
       .accounts({
-        tokenController: this.tokenController.publicKey,
+        tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         localToken: this.localToken.publicKey,
       })
-      .signers([this.tokenController])
+      .signers([signer])
       .rpc();
   };
 
-  linkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
+  linkTokenPair = async (remoteDomain: number, remoteToken: PublicKey, signer = this.tokenController) => {
     const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
       remoteToken,
@@ -527,16 +523,16 @@ export class TestClient {
         remoteToken,
       })
       .accounts({
-        tokenController: this.tokenController.publicKey,
+        tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         tokenPair: tokenPair.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([this.tokenController])
+      .signers([signer])
       .rpc();
   };
 
-  unlinkTokenPair = async (remoteDomain: number, remoteToken: PublicKey) => {
+  unlinkTokenPair = async (remoteDomain: number, remoteToken: PublicKey, signer = this.tokenController) => {
     const tokenPair = this.findProgramAddress("token_pair", [
       remoteDomain.toString(),
       remoteToken,
@@ -545,44 +541,44 @@ export class TestClient {
     return await this.program.methods
       .unlinkTokenPair({ remoteDomain, remoteToken })
       .accounts({
-        tokenController: this.tokenController.publicKey,
+        tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         tokenPair: tokenPair.publicKey,
       })
-      .signers([this.tokenController])
+      .signers([signer])
       .rpc();
   };
 
-  setFeeRecipient = async (newFeeRecipient: PublicKey, _owner: Keypair = this.owner) => {
+  setFeeRecipient = async (newFeeRecipient: PublicKey, signer: Keypair = this.owner) => {
     return await this.program.methods
       .setFeeRecipient({ newFeeRecipient })
       .accounts({
-        owner: _owner.publicKey,
+        owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
-      .signers([_owner])
+      .signers([signer])
       .rpc();
   };
 
-  setMinFeeController = async (newMinFeeController: PublicKey, _owner: Keypair = this.owner) => {
+  setMinFeeController = async (newMinFeeController: PublicKey, signer: Keypair = this.owner) => {
     return await this.program.methods
       .setMinFeeController({ newMinFeeController })
       .accounts({
-        owner: this.owner.publicKey,
+        owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
-      .signers([_owner])
+      .signers([signer])
       .rpc();
   };
 
-  setMinFee = async (newMinFee: number, _minFeeController: Keypair = this.minFeeController) => {
+  setMinFee = async (newMinFee: number, signer: Keypair = this.minFeeController) => {
     return await this.program.methods
       .setMinFee({ newMinFee })
       .accounts({
-        minFeeController: this.minFeeController.publicKey,
+        minFeeController: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
-      .signers([_minFeeController])
+      .signers([signer])
       .rpc();
   };
 
@@ -860,4 +856,34 @@ export class TestClient {
       .signers([this.tokenController])
       .rpc();
   };
+
+  verifyRemoteTokenMessengerState = async (remoteDomain: number, remoteTokenMessengerExpected: ReturnType<typeof this.program.account.tokenMessenger.fetch>) => {
+    const remoteTokenMessenger = this.findProgramAddress(
+        "remote_token_messenger",
+        [remoteDomain.toString()]
+      ).publicKey;
+      const remoteTokenMessengerState =
+        await this.program.account.remoteTokenMessenger.fetch(remoteTokenMessenger);
+      expect(JSON.stringify(remoteTokenMessengerState)).to.equal(
+        JSON.stringify(remoteTokenMessengerExpected)
+      );
+  }
+  
+  verifyTokenMessengerState = async (tokenMessengerExpected: ReturnType<typeof this.program.account.tokenMessenger.fetch>) => {
+    const tokenMessenger = await this.program.account.tokenMessenger.fetch(
+      this.tokenMessenger.publicKey
+    );
+    expect(JSON.stringify(tokenMessenger)).to.equal(
+      JSON.stringify(tokenMessengerExpected)
+    );
+  }
+  
+  verifyTokenMinterState = async (tokenMinterExpected: ReturnType<typeof this.program.account.tokenMinter.fetch>) => {
+    const tokenMinter = await this.program.account.tokenMinter.fetch(
+        this.tokenMinter.publicKey
+      );
+      expect(JSON.stringify(tokenMinter)).to.equal(
+        JSON.stringify(tokenMinterExpected)
+      );
+  }
 }
