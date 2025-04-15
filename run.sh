@@ -23,7 +23,7 @@ V1_RUST_VERSION=1.78.0
 V2_RUST_VERSION=nightly-2025-03-23
 V1_ANCHOR_VERSION=0.28.0
 V2_ANCHOR_VERSION=0.31.0
-BASE_PATH="${GITHUB_WORKSPACE:-$(cd "$(dirname "$0")" && pwd)}"
+BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 function clean_v1() {
   anchor clean
