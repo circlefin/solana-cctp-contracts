@@ -17,7 +17,7 @@
 # limitations under the License.
 
 set -e
-
+corepack enable
 SOLANA_CLI_VERSION=1.18.26
 V1_RUST_VERSION=1.78.0
 V2_RUST_VERSION=nightly-2025-03-23
@@ -26,38 +26,38 @@ V2_ANCHOR_VERSION=0.31.0
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 function clean_v1() {
-  anchor clean
+  RUSTUP_TOOLCHAIN=$V1_RUST_VERSION anchor clean
   echo "V1 program build artifacts cleaned"
 }
 
 function clean_v2() (
   pushd "${BASE_PATH}"/programs/v2
-  anchor clean
+  RUSTUP_TOOLCHAIN=$V2_RUST_VERSION anchor clean
   echo "V2 program build artifacts cleaned"
   popd
 )
 
 function build_v1() {
-  anchor build -p message_transmitter
-  anchor build -p token_messenger_minter
+  RUSTUP_TOOLCHAIN=$V1_RUST_VERSION anchor build -p message_transmitter
+  RUSTUP_TOOLCHAIN=$V1_RUST_VERSION anchor build -p token_messenger_minter
 }
 
 function build_v2() (
   pushd "${BASE_PATH}"/programs/v2
-  anchor build -p message_transmitter_v2
-  anchor build -p token_messenger_minter_v2
+  RUSTUP_TOOLCHAIN=$V2_RUST_VERSION anchor build -p message_transmitter_v2
+  RUSTUP_TOOLCHAIN=$V2_RUST_VERSION anchor build -p token_messenger_minter_v2
   popd
 )
 
 function test_v1() {
   yarn install
-  anchor test -- --features test
+  RUSTUP_TOOLCHAIN=$V1_RUST_VERSION anchor test -- --features test
 }
 
 function test_v2() {
   pushd "${BASE_PATH}"/programs/v2
   yarn install
-  anchor test -- --features test
+  RUSTUP_TOOLCHAIN=$V2_RUST_VERSION anchor test -- --features test
   popd
 }
 
