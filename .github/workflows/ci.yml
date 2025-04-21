@@ -10,6 +10,19 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup
+            ~/.cargo
+            ~/.cache/solana
+            ~/.avm
+            ~/.local/share/solana/install
+          key: ${{ runner.os }}-dependencies-v1-${{ hashFiles('**/Cargo.lock', '**/Anchor.toml', '**/rust-toolchain.toml', '!vendor/**', '!programs/v2/**') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dependencies-v1-${{ hashFiles('**/Cargo.lock', '**/Anchor.toml', '**/rust-toolchain.toml', '!vendor/**', '!programs/v2/**') }}-
+            ${{ runner.os }}-dependencies-v1-
       - name: Run V1 tests
         run: |
           source ./run.sh setup_v1
@@ -22,6 +35,19 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup
+            ~/.cargo
+            ~/.cache/solana
+            ~/.avm
+            ~/.local/share/solana/install
+          key: ${{ runner.os }}-dependencies-v2-${{ hashFiles('programs/v2/**/Cargo.lock', 'programs/v2/**/Anchor.toml', 'programs/v2/**/rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dependencies-v2-${{ hashFiles('programs/v2/**/Cargo.lock', 'programs/v2/**/Anchor.toml', 'programs/v2/**/rust-toolchain.toml') }}-
+            ${{ runner.os }}-dependencies-v2-
       - name: Run V2 tests
         run: |
           source ./run.sh setup_v2
