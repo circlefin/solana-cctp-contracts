@@ -114,8 +114,6 @@ function install_rust() {
   if ! rustup -V >/dev/null; then
     echo "INSTALLING RUST -- https://www.rust-lang.org/tools/install"
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain="$1" -y
-    # For github actions only
-    test -f /home/runner/.profile && source /home/runner/.profile
     source "$HOME/.cargo/env"
     rustup -V
     # Only needed for github action
@@ -132,8 +130,7 @@ function install_solana() {
   if ! which solana 2>/dev/null || ! solana --version >/dev/null; then
     echo "INSTALLING SOLANA-CLI -- https://docs.solana.com/cli/install-solana-cli-tools"
     sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_CLI_VERSION}/install)"
-    # For github actions only
-    test -f /home/runner/.profile && source /home/runner/.profile
+    export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
     solana --version
     echo -e "Solana-CLI successfully installed\n"
   fi
