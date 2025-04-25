@@ -84,6 +84,7 @@ function create_key_pair() {
     echo "Local solana keypair already exists"
   else
     echo "No local solana keypair found, creating one"
+    mkdir -p ~/.config/solana
     touch ~/.config/solana/id.json
     solana-keygen new -o ~/.config/solana/id.json --force --no-bip39-passphrase
   fi
@@ -113,7 +114,7 @@ function install_avm() {
 function install_rust() {
   if ! rustup -V >/dev/null; then
     echo "INSTALLING RUST -- https://www.rust-lang.org/tools/install"
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain="$1" -y
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain="$1" --profile=minimal -y
     source "$HOME/.cargo/env"
     rustup -V
     # Only needed for github action
