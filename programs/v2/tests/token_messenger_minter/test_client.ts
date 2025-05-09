@@ -493,6 +493,7 @@ export class TestClient {
         localToken: this.localToken.publicKey,
         custodyTokenAccount: this.custodyTokenAccount.publicKey,
         tokenProgram: spl.TOKEN_PROGRAM_ID,
+        custodyTokenMint: this.localTokenMint.publicKey,
       })
       .signers([signer])
       .rpc();

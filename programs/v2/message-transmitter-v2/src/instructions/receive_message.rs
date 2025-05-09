@@ -177,7 +177,8 @@ pub fn receive_message<'info>(
         "global:handle_receive_finalized_message"
     };
 
-    let mut data = Vec::with_capacity(52 + message.message_body().len());
+    let serialized_cpi_data_size = 53;
+    let mut data = Vec::with_capacity(serialized_cpi_data_size + message.message_body().len());
     data.extend_from_slice(
         &anchor_lang::solana_program::hash::hash(handler_name.as_bytes()).to_bytes()[..8],
     );

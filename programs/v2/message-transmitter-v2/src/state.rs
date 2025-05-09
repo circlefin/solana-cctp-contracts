@@ -54,6 +54,7 @@ pub struct UsedNonce {
 
 impl MessageTransmitter {
     pub const ATTESTATION_SIGNATURE_LENGTH: usize = 65;
+    pub const EVENT_ACCOUNT_WINDOW_SECONDS: i64 = 60 * 60 * 24 * 5; // 60 secs * 60 mins * 24 hours * 5 days = 5 days in seconds
 
     /// Checks if the state is valid
     pub fn validate(&self) -> bool {

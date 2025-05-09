@@ -25,7 +25,7 @@ use {
         state::{LocalToken, TokenMinter},
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::{Burn, Mint, Token, TokenAccount},
+    anchor_spl::token::{Mint, Token, TokenAccount},
 };
 
 // Instruction accounts
@@ -89,21 +89,13 @@ pub fn burn_token_custody(
         ctx.accounts.custody_token_account.amount
     };
 
-    require_neq!(burn_amount, 0, TokenMinterError::InvalidAmount);
-
-    let authority_seeds: &[&[&[u8]]] = &[&[b"token_minter", &[ctx.accounts.token_minter.bump]]];
-
-    let context = CpiContext::new(
+    ctx.accounts.token_minter.burn_token_custody(
+        burn_amount,
+        ctx.accounts.custody_token_mint.to_account_info(),
+        ctx.accounts.custody_token_account.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
-        Burn {
-            mint: ctx.accounts.custody_token_mint.to_account_info(),
-            from: ctx.accounts.custody_token_account.to_account_info(),
-            authority: ctx.accounts.token_minter.to_account_info(),
-        },
-    )
-    .with_signer(authority_seeds);
-
-    anchor_spl::token::burn(context, burn_amount)?;
+        ctx.accounts.token_minter.to_account_info(),
+    )?;
 
     emit_cpi!(TokenCustodyBurned {
         custody_token_account: ctx.accounts.custody_token_account.key(),

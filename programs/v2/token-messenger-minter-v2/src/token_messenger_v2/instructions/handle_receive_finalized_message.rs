@@ -89,11 +89,11 @@ pub struct HandleReceiveMessageContext<'info> {
     )]
     pub token_pair: Box<Account<'info, TokenPair>>,
 
-    // Fee recipient's token account
+    // Fee recipient's ATA
     #[account(
         mut,
-        constraint = fee_recipient_token_account.mint == local_token.mint,
-        constraint = fee_recipient_token_account.owner == token_messenger.fee_recipient @ TokenMessengerError::InvalidFeeRecipient,
+        associated_token::authority = token_messenger.fee_recipient,
+        associated_token::mint = local_token.mint,
     )]
     pub fee_recipient_token_account: Box<Account<'info, TokenAccount>>,
 

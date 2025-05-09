@@ -101,6 +101,10 @@ pub fn send_message_helper(
         !message_transmitter.paused,
         MessageTransmitterError::ProgramPaused
     );
+    require!(
+        destination_domain != message_transmitter.local_domain,
+        MessageTransmitterError::DestinationDomainIsLocalDomain
+    );
 
     require_gte!(
         message_transmitter.max_message_body_size as usize,
@@ -116,6 +120,7 @@ pub fn send_message_helper(
 
     // format message and emit event
     message_sent_event_data.rent_payer = *event_rent_payer;
+    message_sent_event_data.created_at = Clock::get()?.unix_timestamp;
     message_sent_event_data.message = Message::format_message(
         message_transmitter.version,
         message_transmitter.local_domain,

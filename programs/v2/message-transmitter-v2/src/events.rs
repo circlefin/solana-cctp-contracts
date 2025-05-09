@@ -50,6 +50,7 @@ pub struct AttesterManagerUpdated {
 #[derive(Debug, InitSpace)]
 pub struct MessageSent {
     pub rent_payer: Pubkey,
+    pub created_at: i64,
     #[max_len(1)]
     pub message: Vec<u8>,
 }

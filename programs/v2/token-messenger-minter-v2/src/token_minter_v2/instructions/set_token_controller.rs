@@ -60,6 +60,11 @@ pub fn set_token_controller(
         Pubkey::default(),
         TokenMinterError::InvalidTokenController
     );
+    require_keys_neq!(
+        params.token_controller,
+        ctx.accounts.token_minter.token_controller,
+        TokenMinterError::InvalidTokenController
+    );
 
     ctx.accounts.token_minter.token_controller = params.token_controller;
 

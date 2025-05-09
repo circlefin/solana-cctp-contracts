@@ -92,6 +92,31 @@ impl TokenMinter {
         anchor_spl::token::burn(context, amount)
     }
 
+    pub fn burn_token_custody<'info>(
+        &self,
+        burn_amount: u64,
+        token_mint: AccountInfo<'info>,
+        custody_token_account: AccountInfo<'info>,
+        token_program: AccountInfo<'info>,
+        token_minter: AccountInfo<'info>,
+    ) -> Result<()> {
+        require_neq!(burn_amount, 0, TokenMinterError::InvalidAmount);
+
+        let authority_seeds: &[&[&[u8]]] = &[&[b"token_minter", &[self.bump]]];
+
+        let context = CpiContext::new(
+            token_program,
+            Burn {
+                mint: token_mint,
+                from: custody_token_account,
+                authority: token_minter,
+            },
+        )
+        .with_signer(authority_seeds);
+
+        anchor_spl::token::burn(context, burn_amount)
+    }
+
     pub fn transfer_fee<'info>(
         &self,
         from: AccountInfo<'info>,

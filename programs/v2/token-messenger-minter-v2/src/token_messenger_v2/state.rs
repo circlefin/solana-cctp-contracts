@@ -69,12 +69,13 @@ impl TokenMessenger {
 
         require_gt!(amount, 1, TokenMessengerError::InvalidAmount);
 
-        let fee = amount
-            .checked_mul(self.min_fee as u64)
+        // Cast amount and fees to 128 to avoid overflow, then cast result back to u64 when returning
+        let fee = (amount as u128)
+            .checked_mul(self.min_fee as u128)
             .ok_or(TokenMessengerError::MinFeeAmountOverflow)?
-            / MIN_FEE_MULTIPLIER;
+            / MIN_FEE_MULTIPLIER as u128;
 
-        Ok(fee.max(1))
+        Ok(fee.max(1) as u64)
     }
 }
 

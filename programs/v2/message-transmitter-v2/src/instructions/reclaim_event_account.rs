@@ -64,12 +64,26 @@ pub fn reclaim_event_account(
         MessageTransmitterError::ProgramPaused
     );
 
+    // Ensure the event account is at least EVENT_ACCOUNT_WINDOW_SECONDS seconds old.
+    // This window prevents the message from being missed by our off-chain service if the account is closed early.
+    require!(
+        Clock::get()?.unix_timestamp
+            >= (ctx.accounts.message_sent_event_data.created_at
+                + MessageTransmitter::EVENT_ACCOUNT_WINDOW_SECONDS),
+        MessageTransmitterError::EventAccountWindowNotExpired
+    );
+
     let event_data = ctx.accounts.message_sent_event_data.as_ref();
 
     let message = Message::new(message_transmitter.version, &event_data.message)?;
     let destination_message =
         Message::new(message_transmitter.version, &params.destination_message)?;
+
     // Ensure the source fields for the message and destination message match.
+    // NOTE: Since (unlike in V1) in CCTP V2, the unique nonce for the message is not encoded in the source message (only encoded by Iris at attestation time),
+    // the attestation/destination_message provided may not be for the actual source message stored in this account.
+    // Because of this, the event account window check above is implemented to prevent accounts from being closed before being read by
+    // the off-chain attestation service.
     require_eq!(
         message.hash_source_fields(),
         destination_message.hash_source_fields(),

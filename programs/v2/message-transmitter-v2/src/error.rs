@@ -88,6 +88,10 @@ pub enum MessageTransmitterError {
     InvalidMessageHash,
     #[msg("Invalid destination message")]
     InvalidDestinationMessage,
+    #[msg("Event account window not expired")]
+    EventAccountWindowNotExpired,
+    #[msg("Destination domain is local domain")]
+    DestinationDomainIsLocalDomain,
 }
 
 #[error_code]

@@ -34,7 +34,8 @@ describe("token_messenger_minter_v2", () => {
   let tokenPairExpected;
 
   const messageBodyVersion = 1;
-  const remoteDomain = 123;
+  const remoteDomain = 1234;
+  const localDomain = 123;
   const remoteToken = new PublicKey("1111111111113EsMD5n1VA94D2fALdb1SAKLam8j");
   let mintRecipient;
   let destinationCaller;
@@ -47,7 +48,6 @@ describe("token_messenger_minter_v2", () => {
   const messageAmount = BigInt(200000000);
   const maxFee = BigInt(200000);
   const minFinalityThreshold = 0;
-  const messageSourceDomain = 123;
   const hookData = Buffer.from("");
   let sender;
   let recipient;
@@ -87,8 +87,8 @@ describe("token_messenger_minter_v2", () => {
 
     message = tc.createBurnMessage(
       messageVersion,
-      messageSourceDomain,
       remoteDomain,
+      localDomain,
       messageNonce,
       sender,
       recipient,
@@ -503,11 +503,21 @@ describe("token_messenger_minter_v2", () => {
       await tc.verifyTokenMinterState(tokenMinterExpected);
     });
 
+    it("fails when newTokenController = existing", async () => {
+      const err = await tc.ensureFails(
+        tc.setTokenController(tc.tokenController.publicKey)
+      );
+      assert(err.logs[2].includes("InvalidTokenController"));
+
+      await tc.verifyTokenMinterState(tokenMinterExpected);
+    });
+
     it("success", async () => {
+      // set to a different address first to avoid invalidTokenController
+      await tc.setTokenController(tc.pauser.publicKey);
+      
       await tc.setTokenController(tc.tokenController.publicKey);
-
       tokenMinterExpected.tokenController = tc.tokenController.publicKey;
-
       await tc.verifyTokenMinterState(tokenMinterExpected);
     });
   });
@@ -615,7 +625,27 @@ describe("token_messenger_minter_v2", () => {
 
   describe("removeLocalToken", () => {
     it("success", async () => {
+      // fund custody
+      await spl.mintToChecked(
+        tc.provider.connection,
+        tc.owner,
+        tc.localTokenMint.publicKey,
+        tc.custodyTokenAccount.publicKey,
+        tc.owner,
+        messageAmount,
+        9
+      );
+
+      // Validate balance is > 0 so we can test that we burn the funds
+      const beforeTokenBalance = Number((await spl.getAccount(tc.provider.connection, tc.custodyTokenAccount.publicKey)).amount);
+      expect(beforeTokenBalance).to.be.greaterThan(0);
+      
       await tc.removeLocalToken();
+      
+      // Account is now closed so we can't fetch it
+      await tc.ensureFails(
+        spl.getAccount(tc.provider.connection, tc.custodyTokenAccount.publicKey)
+      );
       await tc.ensureFails(
         tc.program.account.localToken.fetch(tc.localToken.publicKey)
       );
@@ -682,6 +712,19 @@ describe("token_messenger_minter_v2", () => {
   });
 
   describe("depositForBurn", () => {
+    it("fails when local domain = destination domain", async () => {
+      const messageSentEventAccountKeypair = Keypair.generate();
+
+      await tc.ensureFails(
+        tc.depositForBurn(
+          new BN(20),
+          5,
+          mintRecipient,
+          messageSentEventAccountKeypair
+        )
+      );
+    });
+    
     it("success", async () => {
       const response = await tc.isNonceUsed(messageNonce);
       expect(response).to.be.false;
@@ -691,12 +734,12 @@ describe("token_messenger_minter_v2", () => {
       // After the transaction is executed, the keypair is no longer needed and can be tossed away.
       const messageSentEventAccountKeypair = Keypair.generate();
 
-    const signature = await tc.depositForBurn(
-      new BN(20),
-      remoteDomain,
-      mintRecipient,
-      messageSentEventAccountKeypair
-    );
+      const signature = await tc.depositForBurn(
+        new BN(20),
+        remoteDomain,
+        mintRecipient,
+        messageSentEventAccountKeypair
+      );
 
       const events = await tc.readEvents(signature, [
         tc.program,
@@ -736,7 +779,7 @@ describe("token_messenger_minter_v2", () => {
       expect(JSON.stringify(accountInfo.owner)).to.equal(
         JSON.stringify(tc.messageTransmitterProgram.programId)
       );
-      expect(accountInfo.data.length).to.equal(420);
+      expect(accountInfo.data.length).to.equal(428);
 
       expect(await tc.isNonceUsed(messageNonce)).to.be.false;
     });
@@ -1028,7 +1071,7 @@ describe("token_messenger_minter_v2", () => {
     });
   })
 
-  describe("receiveMessage - finalized", () => {
+  describe("receiveMessage", () => {
     it("finalized - success", async () => {
       // fund custody
       await spl.mintToChecked(
@@ -1073,7 +1116,7 @@ describe("token_messenger_minter_v2", () => {
 
       const messageReceivedExpected = {
         caller: tc.provider.wallet.publicKey,
-        sourceDomain: messageSourceDomain,
+        sourceDomain: remoteDomain,
         nonce: Array.from(messageNonce),
         sender,
         finalityThresholdExecuted: 2000,
@@ -1146,8 +1189,8 @@ describe("token_messenger_minter_v2", () => {
     );
       const unfinalizedMessage = tc.createBurnMessage(
         messageVersion,
-        messageSourceDomain,
         remoteDomain,
+        localDomain,
         messageNonce2,
         sender,
         recipient,
@@ -1198,7 +1241,7 @@ describe("token_messenger_minter_v2", () => {
 
       const messageReceivedExpected = {
         caller: tc.provider.wallet.publicKey,
-        sourceDomain: messageSourceDomain,
+        sourceDomain: remoteDomain,
         nonce: Array.from(messageNonce2),
         sender,
         finalityThresholdExecuted,
@@ -1337,6 +1380,12 @@ describe("token_messenger_minter_v2", () => {
         32,
         "hex"
       );
+      
+      // replace source domain with remote domain
+      messageBytes.writeUInt32BE(remoteDomain, 4);
+
+      // replace destination domain with local domain
+      messageBytes.writeUInt32BE(localDomain, 8);
 
       // sign the message
       const messageHash = ethutil.keccak256(messageBytes);
@@ -1460,6 +1509,7 @@ describe("token_messenger_minter_v2", () => {
         tc.user.publicKey
       );
 
+      // Fails for incorrect signer
       await tc.ensureFails(
         tc.reclaimEventAccount(
           tc.owner,
@@ -1468,22 +1518,33 @@ describe("token_messenger_minter_v2", () => {
           messageSentEventAccountKeypair.publicKey
         )
       );
-      await tc.reclaimEventAccount(
-        tc.user,
-        combinedSignedMessageBytes,
-        messageBytes,
-        messageSentEventAccountKeypair.publicKey
-      );
-
+      // Fails for EventAccountWindowNotExpired
       await tc.ensureFails(
-        tc.messageTransmitterProgram.account.messageSent.fetch(
+        tc.reclaimEventAccount(
+          tc.owner,
+          combinedSignedMessageBytes,
+          messageBytes,
           messageSentEventAccountKeypair.publicKey
         )
       );
 
-      expect(
-        await tc.provider.connection.getBalance(tc.user.publicKey)
-      ).to.greaterThan(initialBalance);
+      // TODO: Move to litesvm so we can move forward in time and test successful reclaimEventAccount call.
+      // await tc.reclaimEventAccount(
+      //   tc.user,
+      //   combinedSignedMessageBytes,
+      //   messageBytes,
+      //   messageSentEventAccountKeypair.publicKey
+      // );
+
+      // await tc.ensureFails(
+      //   tc.messageTransmitterProgram.account.messageSent.fetch(
+      //     messageSentEventAccountKeypair.publicKey
+      //   )
+      // );
+
+      // expect(
+      //   await tc.provider.connection.getBalance(tc.user.publicKey)
+      // ).to.greaterThan(initialBalance);
     });
   });
 

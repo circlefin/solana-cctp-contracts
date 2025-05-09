@@ -25,7 +25,7 @@ use {
         state::{LocalToken, TokenMinter},
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::{Token, TokenAccount},
+    anchor_spl::token::{Mint, Token, TokenAccount},
 };
 
 // Instruction accounts
@@ -64,6 +64,12 @@ pub struct RemoveLocalTokenContext<'info> {
     )]
     pub custody_token_account: Box<Account<'info, TokenAccount>>,
 
+    #[account(
+        mut,
+        constraint = custody_token_account.mint == custody_token_mint.key()
+    )]
+    pub custody_token_mint: Box<Account<'info, Mint>>,
+
     pub token_program: Program<'info, Token>,
 }
 
@@ -77,6 +83,18 @@ pub fn remove_local_token(
     _params: &RemoveLocalTokenParams,
 ) -> Result<()> {
     let local_token = ctx.accounts.local_token.as_ref();
+
+    // Burn any remaining tokens before removing so the account can be atomically closed
+    let balance = ctx.accounts.custody_token_account.amount;
+    if balance > 0 {
+        ctx.accounts.token_minter.burn_token_custody(
+            balance,
+            ctx.accounts.custody_token_mint.to_account_info(),
+            ctx.accounts.custody_token_account.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_minter.to_account_info(),
+        )?;
+    }
 
     ctx.accounts.token_minter.close_token_account(
         ctx.accounts.payee.to_account_info(),
