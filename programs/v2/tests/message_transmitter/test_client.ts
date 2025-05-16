@@ -91,9 +91,11 @@ export class TestClient {
     localDomain: number,
     attester: PublicKey,
     maxMessageBodySize: BN,
-    version: number
+    version: number,
+    programData?: PublicKey,
+    upgradeAuthority: Keypair = this.provider.wallet.payer!,
   ) => {
-    const programData = PublicKey.findProgramAddressSync(
+    programData = programData ?? PublicKey.findProgramAddressSync(
       [this.program.programId.toBuffer()],
       new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0];
@@ -105,13 +107,14 @@ export class TestClient {
         maxMessageBodySize,
         version,
       })
-      .accounts({
-        upgradeAuthority: this.provider.wallet.publicKey,
+      .accountsPartial({
+        upgradeAuthority: upgradeAuthority.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         messageTransmitterProgramData: programData,
         messageTransmitterProgram: this.program.programId,
         systemProgram: SystemProgram.programId,
       })
+      .signers([upgradeAuthority])
       .rpc();
   };
 
@@ -120,7 +123,7 @@ export class TestClient {
 
     return await this.program.methods
       .transferOwnership({ newOwner })
-      .accounts({
+      .accountsPartial({
         owner: signer[0].publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -131,7 +134,7 @@ export class TestClient {
   acceptOwnership = async (newOwner: Keypair) => {
     return await this.program.methods
       .acceptOwnership({})
-      .accounts({
+      .accountsPartial({
         pendingOwner: newOwner.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -142,7 +145,7 @@ export class TestClient {
   updatePauser = async (newPauser: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .updatePauser({ newPauser })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -153,7 +156,7 @@ export class TestClient {
   updateAttesterManager = async (newAttesterManager: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .updateAttesterManager({ newAttesterManager })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -164,7 +167,7 @@ export class TestClient {
   pause = async (signer = this.pauser) => {
     return await this.program.methods
       .pause({})
-      .accounts({
+      .accountsPartial({
         pauser: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -175,7 +178,7 @@ export class TestClient {
   unpause = async (signer = this.pauser) => {
     return await this.program.methods
       .unpause({})
-      .accounts({
+      .accountsPartial({
         pauser: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -186,7 +189,7 @@ export class TestClient {
   setMaxMessageBodySize = async (newMaxMessageBodySize: BN, signer = this.owner) => {
     return await this.program.methods
       .setMaxMessageBodySize({ newMaxMessageBodySize })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -197,7 +200,7 @@ export class TestClient {
   enableAttester = async (newAttester: PublicKey, signer = this.attesterManager) => {
     return await this.program.methods
       .enableAttester({ newAttester })
-      .accounts({
+      .accountsPartial({
         attesterManager: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         systemProgram: SystemProgram.programId,
@@ -209,7 +212,7 @@ export class TestClient {
   disableAttester = async (attester: PublicKey, signer = this.attesterManager) => {
     return await this.program.methods
       .disableAttester({ attester })
-      .accounts({
+      .accountsPartial({
         attesterManager: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         systemProgram: SystemProgram.programId,
@@ -221,7 +224,7 @@ export class TestClient {
   setSignatureThreshold = async (newSignatureThreshold: number, signer = this.attesterManager) => {
     return await this.program.methods
       .setSignatureThreshold({ newSignatureThreshold })
-      .accounts({
+      .accountsPartial({
         attesterManager: signer.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })

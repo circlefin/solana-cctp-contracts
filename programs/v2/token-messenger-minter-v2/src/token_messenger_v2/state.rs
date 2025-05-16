@@ -33,8 +33,6 @@ pub struct TokenMessenger {
     pub local_message_transmitter: Pubkey,
     pub message_body_version: u32,
     pub authority_bump: u8,
-    #[max_len(0)]
-    pub denylist: Vec<Pubkey>,
     pub fee_recipient: Pubkey,
     pub min_fee_controller: Pubkey,
     pub min_fee: u32,
@@ -47,6 +45,12 @@ pub struct RemoteTokenMessenger {
     pub token_messenger: Pubkey,
 }
 
+#[account]
+#[derive(Debug, InitSpace)]
+pub struct DenylistedAccount {
+    pub account: Pubkey,
+}
+
 impl TokenMessenger {
     pub fn validate(&self) -> bool {
         self.owner != Pubkey::default()
@@ -54,11 +58,6 @@ impl TokenMessenger {
             && self.denylister != Pubkey::default()
             && self.fee_recipient != Pubkey::default()
             && self.min_fee_controller != Pubkey::default()
-    }
-
-    /// Checks if the account is in the denylist
-    pub fn is_account_denylisted(&self, account: &Pubkey) -> bool {
-        self.denylist.contains(account)
     }
 
     /// Calculates the minimum fee amount for a given amount

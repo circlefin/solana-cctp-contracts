@@ -69,75 +69,114 @@ describe("token_messenger_minter_v2", () => {
     ethutil.privateToAddress(attesterPrivateKey2)
   );
 
-  it("initialize", async () => {
-    await tc.initFixture();
-    await tc.initialize(
-      tc.tokenController.publicKey,
-      tc.denylister.publicKey,
-      tc.feeRecipient.publicKey,
-      tc.minFeeController.publicKey,
-      messageBodyVersion
-    );
+  describe("initialize", () => {
+      it("fails when called by invalid upgrade_authority", async () => {
+        await tc.initFixture();
+  
+        const err = await tc.ensureFails(
+          tc.initialize(
+            tc.tokenController.publicKey,
+            tc.denylister.publicKey,
+            tc.feeRecipient.publicKey,
+            tc.minFeeController.publicKey,
+            messageBodyVersion,
+            undefined,
+            undefined,
+            tc.pauser
+          )
+        );
+        assert(err.logs[6].includes("ConstraintRaw"));
+      });
+  
+      it("fails when called with invalid program data", async () => {
+        // try calling with message transmitter program data
+        const incorrectProgramData = PublicKey.findProgramAddressSync(
+          [new PublicKey("CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC").toBuffer()],
+          new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+        )[0];
+  
+        const err = await tc.ensureFails(
+          tc.initialize(
+            tc.tokenController.publicKey,
+            tc.denylister.publicKey,
+            tc.feeRecipient.publicKey,
+            tc.minFeeController.publicKey,
+            messageBodyVersion,
+            undefined,
+            incorrectProgramData
+          )
+        );
+        assert(err.logs[6].includes("InvalidProgramExecutable"));
+      });
 
-    destinationCaller = tc.provider.wallet.publicKey;
-    mintRecipient = tc.userTokenAccount;
-    depositor = tc.user.publicKey;
-    sender = tc.program.programId;
-    recipient = tc.program.programId;
+      it("initialize", async () => {
+        await tc.initialize(
+          tc.tokenController.publicKey,
+          tc.denylister.publicKey,
+          tc.feeRecipient.publicKey,
+          tc.minFeeController.publicKey,
+          messageBodyVersion
+        );
 
-    message = tc.createBurnMessage(
-      messageVersion,
-      remoteDomain,
-      localDomain,
-      messageNonce,
-      sender,
-      recipient,
-      destinationCaller,
-      minFinalityThreshold,
-      messageBodyVersion,
-      remoteToken,
-      mintRecipient,
-      depositor,
-      messageAmount,
-      maxFee,
-      hookData
-    );
+        destinationCaller = tc.provider.wallet.publicKey;
+        mintRecipient = tc.userTokenAccount;
+        depositor = tc.user.publicKey;
+        sender = tc.program.programId;
+        recipient = tc.program.programId;
 
-    const err = await tc.ensureFails(
-      tc.initialize(
-        tc.tokenController.publicKey,
-        tc.denylister.publicKey,
-        tc.feeRecipient.publicKey,
-        tc.minFeeController.publicKey,
-        messageBodyVersion
-      )
-    );
-    assert(err.logs[3].includes("already in use"));
+        message = tc.createBurnMessage(
+          messageVersion,
+          remoteDomain,
+          localDomain,
+          messageNonce,
+          sender,
+          recipient,
+          destinationCaller,
+          minFinalityThreshold,
+          messageBodyVersion,
+          remoteToken,
+          mintRecipient,
+          depositor,
+          messageAmount,
+          maxFee,
+          hookData
+        );
 
-    tokenMessengerExpected = {
-      denylister: tc.denylister.publicKey,
-      owner: tc.provider.wallet.publicKey,
-      pendingOwner: PublicKey.default,
-      localMessageTransmitter: tc.messageTransmitterProgram.programId,
-      messageBodyVersion,
-      authorityBump: tc.authorityPda.bump,
-      denylist: [],
-      feeRecipient: tc.feeRecipient.publicKey,
-      minFeeController: tc.minFeeController.publicKey,
-      minFee: 0,
-    };
-    await tc.verifyTokenMessengerState(tokenMessengerExpected);
+        const err = await tc.ensureFails(
+          tc.initialize(
+            tc.tokenController.publicKey,
+            tc.denylister.publicKey,
+            tc.feeRecipient.publicKey,
+            tc.minFeeController.publicKey,
+            messageBodyVersion
+          )
+        );
+        assert(err.logs[3].includes("already in use"));
 
-    const tokenMinter = await tc.program.account.tokenMinter.fetch(
-      tc.tokenMinter.publicKey
-    );
-    tokenMinterExpected = {
-      tokenController: tc.tokenController.publicKey,
-      pauser: tc.provider.wallet.publicKey,
-      paused: false,
-      bump: tokenMinter.bump,
-    };
-    await tc.verifyTokenMinterState(tokenMinterExpected);
+        tokenMessengerExpected = {
+          denylister: tc.denylister.publicKey,
+          owner: tc.provider.wallet.publicKey,
+          pendingOwner: PublicKey.default,
+          localMessageTransmitter: tc.messageTransmitterProgram.programId,
+          messageBodyVersion,
+          authorityBump: tc.authorityPda.bump,
+          feeRecipient: tc.feeRecipient.publicKey,
+          minFeeController: tc.minFeeController.publicKey,
+          minFee: 0,
+        };
+        await tc.verifyTokenMessengerState(tokenMessengerExpected);
+
+        const tokenMinter = await tc.program.account.tokenMinter.fetch(
+          tc.tokenMinter.publicKey
+        );
+        tokenMinterExpected = {
+          tokenController: tc.tokenController.publicKey,
+          pauser: tc.provider.wallet.publicKey,
+          paused: false,
+          bump: tokenMinter.bump,
+        };
+        await tc.verifyTokenMinterState(tokenMinterExpected);
+      });
   });
 
   describe("transferOwnership", () => {
@@ -233,134 +272,6 @@ describe("token_messenger_minter_v2", () => {
       expect(JSON.stringify(ownershipTransferred)).to.equal(
         JSON.stringify(eventExpected)
       );
-    });
-  });
-
-  describe("Denylist", () => {
-    it("should succeed adding on multiple accounts to denylist", async () => {
-      const signature = await tc.denylistAccount(
-        tc.denylistedAccount.publicKey
-      );
-      const secondaryDenylistedAccount = Keypair.generate();
-      await tc.denylistAccount(secondaryDenylistedAccount.publicKey);
-
-      const events = await tc.readEvents(signature, [tc.program]);
-      const denylistedEvent = tc.getEvent(
-        events,
-        tc.program.programId,
-        "denylisted"
-      );
-
-      tokenMessengerExpected.denylist = [
-        tc.denylistedAccount.publicKey,
-        secondaryDenylistedAccount.publicKey,
-      ];
-
-      await tc.verifyTokenMessengerState(tokenMessengerExpected);
-
-      const expectedEvent = {
-        account: tc.denylistedAccount.publicKey,
-      };
-      expect(JSON.stringify(denylistedEvent)).to.equal(
-        JSON.stringify(expectedEvent)
-      );
-
-      await tc.undenylistAccount(secondaryDenylistedAccount.publicKey);
-    });
-
-    it("should fail on adding same account to denylist", async () => {
-      await tc.ensureFails(tc.denylistAccount(tc.denylistedAccount.publicKey));
-    });
-
-    it("should succeed on removing account from denylist", async () => {
-      const signature = await tc.undenylistAccount(
-        tc.denylistedAccount.publicKey
-      );
-
-      const events = await tc.readEvents(signature, [tc.program]);
-      const unDenylistedEvent = tc.getEvent(
-        events,
-        tc.program.programId,
-        "unDenylisted"
-      );
-
-      tokenMessengerExpected.denylist = [];
-
-      await tc.verifyTokenMessengerState(tokenMessengerExpected);
-
-      const expectedEvent = {
-        account: tc.denylistedAccount.publicKey,
-      };
-      expect(JSON.stringify(unDenylistedEvent)).to.equal(
-        JSON.stringify(expectedEvent)
-      );
-    });
-
-    it("should fail on removing non existing account from denylist", async () => {
-      await tc.ensureFails(
-        tc.undenylistAccount(tc.denylistedAccount.publicKey)
-      );
-    });
-
-    it("should fail on updating the denylister to the same account", async () => {
-      await tc.ensureFails(tc.updateDenylister(tc.denylister.publicKey));
-    });
-
-    it("should succeed on updating denylister", async () => {
-      const newDenylister = Keypair.generate().publicKey;
-      const signature = await tc.updateDenylister(newDenylister);
-
-      const events = await tc.readEvents(signature, [tc.program]);
-      const updatedDenylistedEvent = tc.getEvent(
-        events,
-        tc.program.programId,
-        "denylisterChanged"
-      );
-
-      tokenMessengerExpected.denylister = newDenylister;
-
-      await tc.verifyTokenMessengerState(tokenMessengerExpected);
-
-      const expectedEvent = {
-        oldDenylister: tc.denylister.publicKey,
-        newDenylister: newDenylister,
-      };
-      expect(JSON.stringify(updatedDenylistedEvent)).to.equal(
-        JSON.stringify(expectedEvent)
-      );
-
-      tokenMessengerExpected.denylister = tc.denylister.publicKey;
-      await tc.updateDenylister(tc.denylister.publicKey);
-    });
-
-    it("should fail on executing depositForBurn with denylisted account", async () => {
-      await tc.denylistAccount(tc.denylistedAccount.publicKey);
-      await tc.ensureFails(
-        tc.depositForBurn(
-          new BN(20),
-          remoteDomain,
-          mintRecipient,
-          Keypair.generate(),
-          undefined,
-          undefined,
-          undefined,
-          tc.denylistedAccount.publicKey
-        )
-      );
-      await tc.ensureFails(
-        tc.depositForBurnWithHook(
-          new BN(20),
-          remoteDomain,
-          mintRecipient,
-          Keypair.generate(),
-          Buffer.from([1, 2, 3]),
-          undefined,
-          undefined,
-          undefined,
-          tc.denylistedAccount.publicKey
-        )
-      );
-      await tc.undenylistAccount(tc.denylistedAccount.publicKey);
     });
   });
 
@@ -708,6 +619,135 @@ describe("token_messenger_minter_v2", () => {
       );
 
       await tc.linkTokenPair(remoteDomain, remoteToken);
+    });
+  });
+
+  describe("Denylist", () => {
+    it("should succeed adding on multiple accounts to denylist", async () => {
+      const signature = await tc.denylistAccount(
+        tc.denylistedAccount.publicKey
+      );
+      const secondaryDenylistedAccount = Keypair.generate();
+      await tc.denylistAccount(secondaryDenylistedAccount.publicKey);
+
+      const events = await tc.readEvents(signature, [tc.program]);
+      const denylistedEvent = tc.getEvent(
+        events,
+        tc.program.programId,
+        "denylisted"
+      );
+
+      const denylistedPDAs = await tc.program.account.denylistedAccount.all();
+      expect(denylistedPDAs.length).to.equal(2);
+      
+      const expectedDenylistedPDA1 = await tc.findProgramAddress("denylist_account", [tc.denylistedAccount.publicKey]);
+      const expectedDenylistedPDA2 = await tc.findProgramAddress("denylist_account", [secondaryDenylistedAccount.publicKey]);
+      const denylistedPDAPublicKeys = denylistedPDAs.map((pda) => pda.publicKey.toString());
+      const denylistedPDAAccounts = denylistedPDAs.map((pda) => pda.account.account.toString());
+      expect(denylistedPDAPublicKeys).to.include(expectedDenylistedPDA1.publicKey.toString());
+      expect(denylistedPDAPublicKeys).to.include(expectedDenylistedPDA2.publicKey.toString());
+      expect(denylistedPDAAccounts).to.include(tc.denylistedAccount.publicKey.toString());
+      expect(denylistedPDAAccounts).to.include(secondaryDenylistedAccount.publicKey.toString());
+
+      const expectedEvent = {
+        account: tc.denylistedAccount.publicKey,
+      };
+      expect(JSON.stringify(denylistedEvent)).to.equal(
+        JSON.stringify(expectedEvent)
+      );
+
+      await tc.undenylistAccount(secondaryDenylistedAccount.publicKey);
+      const denylistedPDAsAfter = await tc.program.account.denylistedAccount.all();
+      expect(denylistedPDAsAfter.length).to.equal(1);
+    });
+
+    it("should fail on adding same account to denylist", async () => {
+      await tc.ensureFails(tc.denylistAccount(tc.denylistedAccount.publicKey));
+    });
+
+    it("should succeed on removing account from denylist", async () => {
+      const signature = await tc.undenylistAccount(
+        tc.denylistedAccount.publicKey
+      );
+
+      const events = await tc.readEvents(signature, [tc.program]);
+      const unDenylistedEvent = tc.getEvent(
+        events,
+        tc.program.programId,
+        "unDenylisted"
+      );
+
+      const expectedEvent = {
+        account: tc.denylistedAccount.publicKey,
+      };
+      expect(JSON.stringify(unDenylistedEvent)).to.equal(
+        JSON.stringify(expectedEvent)
+      );
+
+      const denylistedPDAsAfter = await tc.program.account.denylistedAccount.all();
+      expect(denylistedPDAsAfter.length).to.equal(0);
+    });
+
+    it("should fail on removing non existing account from denylist", async () => {
+      await tc.ensureFails(
+        tc.undenylistAccount(tc.denylistedAccount.publicKey)
+      );
+    });
+
+    it("should fail on updating the denylister to the same account", async () => {
+      await tc.ensureFails(tc.updateDenylister(tc.denylister.publicKey));
+    });
+
+    it("should succeed on updating denylister", async () => {
+      const newDenylister = Keypair.generate().publicKey;
+      const signature = await tc.updateDenylister(newDenylister);
+
+      const events = await tc.readEvents(signature, [tc.program]);
+      const updatedDenylistedEvent = tc.getEvent(
+        events,
+        tc.program.programId,
+        "denylisterChanged"
+      );
+
+      tokenMessengerExpected.denylister = newDenylister;
+
+      await tc.verifyTokenMessengerState(tokenMessengerExpected);
+
+      const expectedEvent = {
+        oldDenylister: tc.denylister.publicKey,
+        newDenylister: newDenylister,
+      };
+      expect(JSON.stringify(updatedDenylistedEvent)).to.equal(
+        JSON.stringify(expectedEvent)
+      );
+
+      tokenMessengerExpected.denylister = tc.denylister.publicKey;
+      await tc.updateDenylister(tc.denylister.publicKey);
+    });
+
+    it("should fail on executing depositForBurn with denylisted account", async () => {
+      await tc.denylistAccount(tc.user.publicKey);
+      let err = await tc.ensureFails(
+        tc.depositForBurn(
+          new BN(20),
+          remoteDomain,
+          mintRecipient,
+          Keypair.generate(),
+        )
+      );
+      expect(err.error.errorCode.code).to.equal("DenylistedAccount");
+      err = await tc.ensureFails(
+        tc.depositForBurnWithHook(
+          new BN(20),
+          remoteDomain,
+          mintRecipient,
+          Keypair.generate(),
+          Buffer.from([1, 2, 3]),
+        )
+      );
+      expect(err.error.errorCode.code).to.equal("DenylistedAccount");
+      
+      await tc.undenylistAccount(tc.user.publicKey);
     });
   });
 

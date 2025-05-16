@@ -90,6 +90,19 @@ pub struct InitializeParams {
 
 // Instruction handler
 pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) -> Result<()> {
+    // Validate token_messenger_minter_program_data
+    if let Some(programdata_address) = ctx
+        .accounts
+        .token_messenger_minter_program
+        .programdata_address()?
+    {
+        require_keys_eq!(
+            programdata_address,
+            ctx.accounts.token_messenger_minter_program_data.key(),
+            ErrorCode::InvalidProgramExecutable
+        );
+    }
+
     // record token_messenger state
     let authority = ctx.accounts.upgrade_authority.key();
     let token_messenger = ctx.accounts.token_messenger.as_mut();

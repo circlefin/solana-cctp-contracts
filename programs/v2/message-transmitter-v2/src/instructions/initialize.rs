@@ -69,6 +69,19 @@ pub struct InitializeParams {
 
 // Instruction handler
 pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) -> Result<()> {
+    // Validate message_transmitter_program_data
+    if let Some(programdata_address) = ctx
+        .accounts
+        .message_transmitter_program
+        .programdata_address()?
+    {
+        require_keys_eq!(
+            programdata_address,
+            ctx.accounts.message_transmitter_program_data.key(),
+            ErrorCode::InvalidProgramExecutable
+        );
+    }
+
     // record message_transmitter state
     let authority = ctx.accounts.upgrade_authority.key();
     let message_transmitter = ctx.accounts.message_transmitter.as_mut();

@@ -42,9 +42,6 @@ use {
 #[derive(Accounts)]
 #[instruction(params: DepositForBurnParams)]
 pub struct DepositForBurnContext<'info> {
-    #[account(
-        constraint = !token_messenger.is_account_denylisted(&owner.key()) @ TokenMessengerError::DenylistedAccount
-    )]
     pub owner: Signer<'info>,
 
     #[account(mut)]
@@ -63,6 +60,14 @@ pub struct DepositForBurnContext<'info> {
         has_one = owner
     )]
     pub burn_token_account: Box<Account<'info, TokenAccount>>,
+
+    /// CHECK: denylist PDA
+    /// Account is denylisted if the account exists at the expected PDA.
+    #[account(
+        seeds = [b"denylist_account", owner.to_account_info().key().as_ref()],
+        bump,
+    )]
+    pub denylist_account: UncheckedAccount<'info>,
 
     #[account(mut)]
     pub message_transmitter: Box<Account<'info, MessageTransmitter>>,
@@ -149,6 +154,14 @@ pub fn deposit_for_burn_helper(
     hook_data: &Vec<u8>,
 ) -> Result<()> {
     require_gt!(amount, 0, TokenMessengerError::InvalidAmount);
+
+    // Check if owner account is denylisted by checking if the PDA is initialized (has at least a discriminator)
+    let denylist_account_data = ctx.accounts.denylist_account.try_borrow_data()?;
+    require_eq!(
+        denylist_account_data.len(),
+        0,
+        TokenMessengerError::DenylistedAccount
+    );
 
     require_keys_neq!(
         *mint_recipient,

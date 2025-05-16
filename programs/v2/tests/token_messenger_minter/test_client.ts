@@ -299,9 +299,11 @@ export class TestClient {
     feeRecipient: PublicKey,
     minFeeController: PublicKey,
     messageBodyVersion: number,
-    minFee: number = 0
+    minFee: number = 0,
+    programData?: PublicKey,
+    upgradeAuthority: Keypair = this.provider.wallet.payer!,
   ) => {
-    const programData = PublicKey.findProgramAddressSync(
+    programData = programData ?? PublicKey.findProgramAddressSync(
       [this.program.programId.toBuffer()],
       new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0];
@@ -316,8 +318,8 @@ export class TestClient {
         localMessageTransmitter: this.messageTransmitterProgram.programId,
         messageBodyVersion,
       })
-      .accounts({
-        upgradeAuthority: this.provider.wallet.publicKey,
+      .accountsPartial({
+        upgradeAuthority: upgradeAuthority.publicKey,
         authorityPda: this.authorityPda.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
@@ -325,13 +327,14 @@ export class TestClient {
         tokenMessengerMinterProgram: this.program.programId,
         systemProgram: SystemProgram.programId,
       })
+      .signers([upgradeAuthority])
       .rpc();
   };
 
   denylistAccount = async (account: PublicKey) => {
     return await this.program.methods
       .denylistAccount({ account })
-      .accounts({
+      .accountsPartial({
         denylister: this.denylister.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         systemProgram: SystemProgram.programId,
@@ -343,7 +346,7 @@ export class TestClient {
   undenylistAccount = async (account: PublicKey) => {
     return await this.program.methods
       .undenylistAccount({ account })
-      .accounts({
+      .accountsPartial({
         denylister: this.denylister.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         systemProgram: SystemProgram.programId,
@@ -355,7 +358,7 @@ export class TestClient {
   updateDenylister = async (newDenylister: PublicKey) => {
     return await this.program.methods
       .updateDenylister({ newDenylister })
-      .accounts({
+      .accountsPartial({
         owner: this.owner.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
@@ -366,7 +369,7 @@ export class TestClient {
   transferOwnership = async (newOwner: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .transferOwnership({ newOwner })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
@@ -377,7 +380,7 @@ export class TestClient {
   acceptOwnership = async (signer = this.owner) => {
     return await this.program.methods
       .acceptOwnership({})
-      .accounts({
+      .accountsPartial({
         pendingOwner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
@@ -396,7 +399,7 @@ export class TestClient {
     ).publicKey;
     return await this.program.methods
       .addRemoteTokenMessenger({ domain, tokenMessenger })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         remoteTokenMessenger,
@@ -413,7 +416,7 @@ export class TestClient {
     ).publicKey;
     return await this.program.methods
       .removeRemoteTokenMessenger({})
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         remoteTokenMessenger,
@@ -425,7 +428,7 @@ export class TestClient {
   updatePauser = async (newPauser: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .updatePauser({ newPauser })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
@@ -437,7 +440,7 @@ export class TestClient {
   setTokenController = async (tokenController: PublicKey, signer = this.owner) => {
     return await this.program.methods
       .setTokenController({ tokenController })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
@@ -449,7 +452,7 @@ export class TestClient {
   pause = async (signer = this.pauser) => {
     return await this.program.methods
       .pause({})
-      .accounts({
+      .accountsPartial({
         pauser: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
       })
@@ -460,7 +463,7 @@ export class TestClient {
   unpause = async (signer = this.pauser) => {
     return await this.program.methods
       .unpause({})
-      .accounts({
+      .accountsPartial({
         pauser: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
       })
@@ -471,7 +474,7 @@ export class TestClient {
   addLocalToken = async (signer = this.tokenController) => {
     return await this.program.methods
       .addLocalToken({})
-      .accounts({
+      .accountsPartial({
         tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         localToken: this.localToken.publicKey,
@@ -487,7 +490,7 @@ export class TestClient {
   removeLocalToken = async (signer = this.tokenController) => {
     return await this.program.methods
       .removeLocalToken({})
-      .accounts({
+      .accountsPartial({
         tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         localToken: this.localToken.publicKey,
@@ -502,7 +505,7 @@ export class TestClient {
   setMaxBurnAmountPerMessage = async (burnLimitPerMessage: BN, signer = this.tokenController) => {
     return await this.program.methods
       .setMaxBurnAmountPerMessage({ burnLimitPerMessage })
-      .accounts({
+      .accountsPartial({
         tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         localToken: this.localToken.publicKey,
@@ -523,7 +526,7 @@ export class TestClient {
         remoteDomain,
         remoteToken,
       })
-      .accounts({
+      .accountsPartial({
         tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         tokenPair: tokenPair.publicKey,
@@ -541,7 +544,7 @@ export class TestClient {
 
     return await this.program.methods
       .unlinkTokenPair({ remoteDomain, remoteToken })
-      .accounts({
+      .accountsPartial({
         tokenController: signer.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         tokenPair: tokenPair.publicKey,
@@ -553,7 +556,7 @@ export class TestClient {
   setFeeRecipient = async (newFeeRecipient: PublicKey, signer: Keypair = this.owner) => {
     return await this.program.methods
       .setFeeRecipient({ newFeeRecipient })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
@@ -564,7 +567,7 @@ export class TestClient {
   setMinFeeController = async (newMinFeeController: PublicKey, signer: Keypair = this.owner) => {
     return await this.program.methods
       .setMinFeeController({ newMinFeeController })
-      .accounts({
+      .accountsPartial({
         owner: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
@@ -575,7 +578,7 @@ export class TestClient {
   setMinFee = async (newMinFee: number, signer: Keypair = this.minFeeController) => {
     return await this.program.methods
       .setMinFee({ newMinFee })
-      .accounts({
+      .accountsPartial({
         minFeeController: signer.publicKey,
         tokenMessenger: this.tokenMessenger.publicKey,
       })
@@ -607,7 +610,7 @@ export class TestClient {
         minFinalityThreshold,
         destinationCaller,
       })
-      .accounts({
+      .accountsPartial({
         owner,
         eventRentPayer: owner,
         senderAuthorityPda: this.authorityPda.publicKey,
@@ -654,7 +657,7 @@ export class TestClient {
         minFinalityThreshold,
         hookData,
       })
-      .accounts({
+      .accountsPartial({
         owner,
         eventRentPayer: owner,
         senderAuthorityPda: this.authorityPda.publicKey,
@@ -678,7 +681,7 @@ export class TestClient {
   enableAttester = async (newAttester: PublicKey) => {
     return await this.messageTransmitterProgram.methods
       .enableAttester({ newAttester })
-      .accounts({
+      .accountsPartial({
         attesterManager: this.provider.wallet.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         systemProgram: SystemProgram.programId,
@@ -689,7 +692,7 @@ export class TestClient {
   disableAttester = async (attester: PublicKey) => {
     return await this.messageTransmitterProgram.methods
       .disableAttester({ attester })
-      .accounts({
+      .accountsPartial({
         attesterManager: this.provider.wallet.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         systemProgram: SystemProgram.programId,
@@ -700,7 +703,7 @@ export class TestClient {
   setSignatureThreshold = async (newSignatureThreshold: number) => {
     return await this.messageTransmitterProgram.methods
       .setSignatureThreshold({ newSignatureThreshold })
-      .accounts({
+      .accountsPartial({
         attesterManager: this.provider.wallet.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
       })
@@ -798,7 +801,7 @@ export class TestClient {
         message: Buffer.from(message),
         attestation: Buffer.from(attestation),
       })
-      .accounts({
+      .accountsPartial({
         caller: this.provider.wallet.publicKey,
         authorityPda,
         messageTransmitter: this.messageTransmitter.publicKey,
@@ -821,7 +824,7 @@ export class TestClient {
         attestation: Buffer.from(attestation),
         destinationMessage,
       })
-      .accounts({
+      .accountsPartial({
         payee: payee.publicKey,
         messageTransmitter: this.messageTransmitter.publicKey,
         messageSentEventData: messageSentEventAccount,
@@ -839,14 +842,14 @@ export class TestClient {
 
     return await this.messageTransmitterProgram.methods
       .isNonceUsed()
-      .accounts({ usedNonce })
+      .accountsPartial({ usedNonce })
       .view();
   };
 
   burnTokenCustody = async (amount: BN) => {
     return await this.program.methods
       .burnTokenCustody({ amount })
-      .accounts({
+      .accountsPartial({
         tokenController: this.tokenController.publicKey,
         tokenMinter: this.tokenMinter.publicKey,
         localToken: this.localToken.publicKey,

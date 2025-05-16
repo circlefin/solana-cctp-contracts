@@ -17,10 +17,11 @@
  */
 
 import { TestClient } from "./test_client";
-import { PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey, VOTE_PROGRAM_ID } from "@solana/web3.js";
 import { expect, assert } from "chai";
 import * as ethutil from "ethereumjs-util";
 import BN from "bn.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 describe("message_transmitter_v2", () => {
   let tc = new TestClient();
@@ -45,30 +46,53 @@ describe("message_transmitter_v2", () => {
     ethutil.privateToAddress(attesterPrivateKey2)
   );
 
-  it("initialize", async () => {
-    await tc.initFixture();
-    await tc.initialize(localDomain, attester1, new BN(200), version);
+  describe("initialize", () => {
+    it("fails when called by invalid upgrade_authority", async () => {
+      await tc.initFixture();
 
-    const err = await tc.ensureFails(
-      tc.initialize(localDomain, attester1, new BN(200), version)
-    );
-    assert(err.logs[3].includes("already in use"));
+      const err = await tc.ensureFails(
+        tc.initialize(localDomain, attester1, new BN(200), version, undefined, tc.pauser)
+      );
+      assert(err.logs[4].includes("ConstraintRaw"));
+    });
 
-    messageTransmitterExpected = {
-      owner: tc.provider.wallet.publicKey,
-      pendingOwner: PublicKey.default,
-      attesterManager: tc.provider.wallet.publicKey,
-      pauser: tc.provider.wallet.publicKey,
-      paused: false,
-      localDomain: localDomain,
-      version: version,
-      signatureThreshold: 1,
-      enabledAttesters: [attester1],
-      maxMessageBodySize: "200",
-      nextAvailableNonce: "1",
-    };
+    it("fails when called with invalid program data", async () => {
+      // try calling with token messenger program data
+      const incorrectProgramData = PublicKey.findProgramAddressSync(
+        [new PublicKey("CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe").toBuffer()],
+        new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+      )[0];
 
-    await tc.verifyState(messageTransmitterExpected);
+      const err = await tc.ensureFails(
+        tc.initialize(localDomain, attester1, new BN(200), version, incorrectProgramData)
+      );
+      assert(err.logs[4].includes("InvalidProgramExecutable"));
+    });
+
+    it("success", async () => {
+      await tc.initialize(localDomain, attester1, new BN(200), version);
+  
+      const err = await tc.ensureFails(
+        tc.initialize(localDomain, attester1, new BN(200), version)
+      );
+      assert(err.logs[3].includes("already in use"));
+  
+      messageTransmitterExpected = {
+        owner: tc.provider.wallet.publicKey,
+        pendingOwner: PublicKey.default,
+        attesterManager: tc.provider.wallet.publicKey,
+        pauser: tc.provider.wallet.publicKey,
+        paused: false,
+        localDomain: localDomain,
+        version: version,
+        signatureThreshold: 1,
+        enabledAttesters: [attester1],
+        maxMessageBodySize: "200",
+        nextAvailableNonce: "1",
+      };
+  
+      await tc.verifyState(messageTransmitterExpected);
+    });
   });
 
   describe("transferOwnership", () => {

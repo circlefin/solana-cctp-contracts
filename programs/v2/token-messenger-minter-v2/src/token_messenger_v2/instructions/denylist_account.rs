@@ -20,15 +20,15 @@
 
 use {
     crate::token_messenger_v2::{
-        error::TokenMessengerError, events::Denylisted, state::TokenMessenger,
+        error::TokenMessengerError, events::Denylisted, state::TokenMessenger, DenylistedAccount,
     },
     anchor_lang::prelude::*,
-    anchor_lang::solana_program::pubkey::PUBKEY_BYTES,
 };
 
 // Instruction accounts
 #[event_cpi]
 #[derive(Accounts)]
+#[instruction(params: DenylistParams)]
 pub struct DenylistContext<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -36,15 +36,18 @@ pub struct DenylistContext<'info> {
     #[account()]
     pub denylister: Signer<'info>,
 
-    // Allocate space for the account to be added in the denylist
-    #[account(
-        mut,
-        has_one = denylister @ TokenMessengerError::InvalidAuthority,
-        realloc = TokenMessenger::DISCRIMINATOR.len() + TokenMessenger::INIT_SPACE + (token_messenger.denylist.len() + 1) * PUBKEY_BYTES,
-        realloc::payer = payer,
-        realloc::zero = false
-    )]
+    #[account(has_one = denylister @ TokenMessengerError::InvalidAuthority)]
     pub token_messenger: Box<Account<'info, TokenMessenger>>,
+
+    /// CHECK: We create this PDA to represent the denylist entry.
+    #[account(
+        init,
+        payer = payer,
+        space = DenylistedAccount::DISCRIMINATOR.len() + DenylistedAccount::INIT_SPACE,
+        seeds = [b"denylist_account", params.account.key().as_ref()],
+        bump,
+    )]
+    pub denylist_account: Box<Account<'info, DenylistedAccount>>,
 
     pub system_program: Program<'info, System>,
 }
@@ -57,15 +60,9 @@ pub struct DenylistParams {
 
 // Instruction handler
 pub fn denylist_account(ctx: Context<DenylistContext>, params: &DenylistParams) -> Result<()> {
-    require!(
-        !ctx.accounts
-            .token_messenger
-            .is_account_denylisted(&params.account),
-        TokenMessengerError::AlreadyDenylisted
-    );
-
-    // Add account to denylist
-    ctx.accounts.token_messenger.denylist.push(params.account);
+    // PDA representing denylist entry is created via init constraint.
+    let denylist_account = ctx.accounts.denylist_account.as_mut();
+    denylist_account.account = params.account;
 
     emit_cpi!(Denylisted {
         account: params.account,
