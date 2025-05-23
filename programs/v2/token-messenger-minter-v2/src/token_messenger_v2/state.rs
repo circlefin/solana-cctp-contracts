@@ -30,7 +30,6 @@ pub struct TokenMessenger {
     pub denylister: Pubkey,
     pub owner: Pubkey,
     pub pending_owner: Pubkey,
-    pub local_message_transmitter: Pubkey,
     pub message_body_version: u32,
     pub authority_bump: u8,
     pub fee_recipient: Pubkey,
@@ -54,7 +53,6 @@ pub struct DenylistedAccount {
 impl TokenMessenger {
     pub fn validate(&self) -> bool {
         self.owner != Pubkey::default()
-            && self.local_message_transmitter != Pubkey::default()
             && self.denylister != Pubkey::default()
             && self.fee_recipient != Pubkey::default()
             && self.min_fee_controller != Pubkey::default()

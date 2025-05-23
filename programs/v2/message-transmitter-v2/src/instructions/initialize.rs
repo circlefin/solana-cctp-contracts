@@ -95,7 +95,6 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
     message_transmitter.signature_threshold = 1;
     message_transmitter.enabled_attesters.push(params.attester);
     message_transmitter.max_message_body_size = params.max_message_body_size;
-    message_transmitter.next_available_nonce = 1;
 
     // validate the state
     require!(

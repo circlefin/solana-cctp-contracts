@@ -157,7 +157,6 @@ describe("token_messenger_minter_v2", () => {
           denylister: tc.denylister.publicKey,
           owner: tc.provider.wallet.publicKey,
           pendingOwner: PublicKey.default,
-          localMessageTransmitter: tc.messageTransmitterProgram.programId,
           messageBodyVersion,
           authorityBump: tc.authorityPda.bump,
           feeRecipient: tc.feeRecipient.publicKey,

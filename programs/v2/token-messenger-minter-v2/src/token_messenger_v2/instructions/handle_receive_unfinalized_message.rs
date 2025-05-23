@@ -45,7 +45,8 @@ pub fn handle_receive_unfinalized_message(
     ctx: Context<HandleReceiveMessageContext>,
     params: &HandleReceiveMessageParams,
 ) -> Result<()> {
-    // Check that the finality executed does not exceed the minimum threshold.
+    // Check that the finality executed is not lower than the minimum finality, reserving
+    // thresholds lower than TOKEN_MESSENGER_MIN_FINALITY_THRESHOLD for potential future use-cases.
     require_gte!(
         params.finality_threshold_executed,
         TOKEN_MESSENGER_MIN_FINALITY_THRESHOLD,

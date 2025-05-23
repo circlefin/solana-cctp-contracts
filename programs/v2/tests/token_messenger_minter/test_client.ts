@@ -315,7 +315,6 @@ export class TestClient {
         feeRecipient,
         minFeeController,
         minFee,
-        localMessageTransmitter: this.messageTransmitterProgram.programId,
         messageBodyVersion,
       })
       .accountsPartial({

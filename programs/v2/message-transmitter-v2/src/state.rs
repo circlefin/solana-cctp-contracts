@@ -43,7 +43,6 @@ pub struct MessageTransmitter {
     #[max_len(1)]
     pub enabled_attesters: Vec<Pubkey>,
     pub max_message_body_size: u64,
-    pub next_available_nonce: u64,
 }
 
 #[account]
@@ -64,7 +63,6 @@ impl MessageTransmitter {
             && self.signature_threshold != 0
             && self.signature_threshold as usize <= self.enabled_attesters.len()
             && !self.enabled_attesters.is_empty()
-            && self.next_available_nonce > 0
     }
 
     /// Returns an error if the attestation, which is comprised of one or more concatenated 65-byte signatures, is invalid.

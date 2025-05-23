@@ -88,7 +88,6 @@ describe("message_transmitter_v2", () => {
         signatureThreshold: 1,
         enabledAttesters: [attester1],
         maxMessageBodySize: "200",
-        nextAvailableNonce: "1",
       };
   
       await tc.verifyState(messageTransmitterExpected);

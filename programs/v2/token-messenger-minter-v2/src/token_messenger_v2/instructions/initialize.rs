@@ -84,7 +84,6 @@ pub struct InitializeParams {
     pub fee_recipient: Pubkey,
     pub min_fee_controller: Pubkey,
     pub min_fee: u32,
-    pub local_message_transmitter: Pubkey,
     pub message_body_version: u32,
 }
 
@@ -108,7 +107,6 @@ pub fn initialize(ctx: Context<InitializeContext>, params: &InitializeParams) ->
     let token_messenger = ctx.accounts.token_messenger.as_mut();
     token_messenger.owner = authority;
     token_messenger.pending_owner = Pubkey::default();
-    token_messenger.local_message_transmitter = params.local_message_transmitter;
     token_messenger.denylister = params.denylister;
     token_messenger.fee_recipient = params.fee_recipient;
     token_messenger.min_fee_controller = params.min_fee_controller;
