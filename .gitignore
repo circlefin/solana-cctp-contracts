@@ -10,3 +10,6 @@ test-ledger
 .yarnrc.yml
 !vendor/**/src/target
 .idea/
+.anchor-localnet
+.env
+devnetUser.json

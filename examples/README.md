@@ -11,42 +11,89 @@ and [spl-token CLI](https://spl.solana.com/token#setup).
 
 2. Install dependencies:
 
-```bash
-npm install
-```
+    ```bash
+    npm install
+    ```
 
 3. Create a local Devnet wallet (if needed), get some Devnet SOL, and create a USDC token account:
 
+    ```bash
+    solana-keygen new -o devnetUser.json
+    solana-keygen pubkey devnetUser.json
+    solana airdrop -u devnet 5 devnetUser.json
+    spl-token create-account -u devnet --owner devnetUser.json 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+    ```
+
+4. Copy over the `.env.example` file.
+
+    ```bash
+    cp .env.example .env
+    ```
+
+5. Set the new token account created in Prerequisites to the `USER_TOKEN_ACCOUNT` variable in [.env](./.env).
+
+6. Get some Devnet USDCSOL and/or EVM testnet USDC to transfer: <https://faucet.circle.com/>.
+
+7. Set an EVM address in hex to the `REMOTE_EVM_ADDRESS` variable in [.env](./.env). This address will receive the
+minted tokens on the destination chain (AVAX by default, destination can be changed with `REMOTE_EVM_DOMAIN`
+env var).
+
+## V2
+
+### Setup
+
+Set `REMOTE_EVM_PRIVATE_KEY` and `REMOTE_EVM_RPC_URL` variables in [.env](./.env).
+
+The below commands will run the `depositForBurn`, attestation fetching, and `receiveMessage` steps.
+
+### Fast Transfer
 ```bash
-solana-keygen new -o devnetUser.json
-solana-keygen pubkey devnetUser.json
-solana airdrop -u devnet 5 <address output from previous step>
-spl-token create-account -u devnet --owner devnetUser.json 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+# Bridge Solana to EVM
+npm run bridge-v2 sol2evm -- --amount 100 --maxFee 1 --minFinalityThreshold 1000
+
+# Bridge EVM to Solana
+npm run bridge-v2 evm2sol -- --amount 100 --maxFee 1 --minFinalityThreshold 1000
 ```
 
-## Deposit For Burn
+### Standard Transfer
+```bash
+# Bridge Solana to EVM
+npm run bridge-v2 sol2evm -- --amount 100 --maxFee 0 --minFinalityThreshold 2000
+
+# Bridge EVM to Solana
+npm run bridge-v2 evm2sol -- --amount 100 --maxFee 0 --minFinalityThreshold 2000
+```
+
+### Hooks
+To utilize hook functionality, set `DESTINATION_CALLER` in the env vars and pass the `hookData` arg when calling the above scripts.
+
+```bash
+npm run bridge-v2 sol2evm -- --amount 100 --maxFee 1 --minFinalityThreshold 1000 --hookData 0x1234
+```
+
+### Reclaim MessageSentEvent Account Rent
+The rent for the MessageSentEvent Account can be reclaimed after a period of 5 days.
+
+```bash
+npm run bridge-v2 reclaim --attestation <ATTESTATION> --destinationMessage <DESTINATION_MESSAGE> --messageSentEventAccount <MESSAGE_SENT_EVENT_ACCOUNT>
+```
+
+## V1
+### Deposit For Burn
 
 To initiate a depositForBurn instruction from Solana to another chain follow these steps:
 
-1. Set the new token account created in Prerequisites to the `USER_TOKEN_ACCOUNT` variable in [.env](./.env).
+1. Call depositForBurn script:
 
-2. Get some Devnet USDCSOL to transfer: <https://faucet.circle.com/>.
+    ```bash
+    npm run depositForBurn
+    ```
 
-3. Set an EVM address in hex to the `MINT_RECIPIENT_HEX` variable in [.env](./.env). This address will receive the
-minted tokens on the destination chain (AVAX by default, destination can be changed with `DESTINATION_CHAIN`
-env var).
-
-4. Call depositForBurn script:
-
-```bash
-npm run depositForBurn
-```
-
-5. The output `message` and `attestation` can be used to call `receiveMessage` on the destination
+2. The output `message` and `attestation` can be used to call `receiveMessage` on the destination
 blockchain CCTP contracts: 
 <https://developers.circle.com/stablecoins/docs/transfer-usdc-on-testnet-from-ethereum-to-avalanche>.
 
-## Receive Message
+### Receive Message
 
 1. Call `depositForBurn` on an EVM chain with a `destinationDomain` of 5 for Solana, and a `mintRecipient` of
 the desired **user token account** on Solana Devnet (you can use the account created in Prerequisites). This address must be decoded from base58 to hex first using
@@ -60,6 +107,6 @@ For more info and scripts to help with calling depositForBurn on a different cha
 
 4. Call receiveMessage script:
 
-```bash
-npm run receiveMessage
-```
+    ```bash
+    npm run receiveMessage
+    ```

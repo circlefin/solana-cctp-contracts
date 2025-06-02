@@ -18,7 +18,7 @@
 
 import 'dotenv/config';
 import * as anchor from "@coral-xyz/anchor";
-import { PublicKey, Keypair } from '@solana/web3.js';
+import { PublicKey, Keypair, SystemProgram } from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
 import { getBytes } from 'ethers';
 
@@ -35,9 +35,9 @@ const main = async () => {
 
     // Default to 1 USDCSOL (e.g. $0.000001)
     const amount = new anchor.BN(process.env.AMOUNT ?? 1);
-    const destinationDomain = Number(process.env.DEST_DOMAIN!);
+    const destinationDomain = Number(process.env.REMOTE_EVM_DOMAIN!);
     // mintRecipient is a bytes32 type so pad with 0's then convert to a solana PublicKey
-    const mintRecipient = new PublicKey(getBytes(evmAddressToBytes32(process.env.MINT_RECIPIENT_HEX!)));
+    const mintRecipient = new PublicKey(getBytes(evmAddressToBytes32(process.env.REMOTE_EVM_ADDRESS!)));
 
     // Get pdas
     const pdas = getDepositForBurnPdas({messageTransmitterProgram, tokenMessengerMinterProgram}, usdcAddress, destinationDomain);
@@ -48,7 +48,7 @@ const main = async () => {
     console.log("\n\nCalling depositForBurn with parameters: ");
     console.log("amount:", amount.toString());
     console.log("destinationDomain:", destinationDomain);
-    console.log("mintRecipient (hex):", process.env.MINT_RECIPIENT_HEX); 
+    console.log("mintRecipient (hex):", process.env.REMOTE_EVM_ADDRESS); 
     console.log("mintRecipient (bytes52):", mintRecipient.toString());
     console.log("remoteTokenMessenger (hexa):", solanaAddressToHex(pdas.remoteTokenMessengerKey.publicKey.toString()))
     console.log("remoteTokenMessenger (bytes52):", pdas.remoteTokenMessengerKey.publicKey.toString());
@@ -78,6 +78,7 @@ const main = async () => {
         tokenMessengerMinterProgram: tokenMessengerMinterProgram.programId,
         messageSentEventData: messageSentEventAccountKeypair.publicKey,
         tokenProgram: spl.TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
     })
     // messageSentEventAccountKeypair must be a signer so the MessageTransmitter program can take control of it and write to it.
     // provider.wallet is also an implicit signer

@@ -30,7 +30,7 @@ const main = async () => {
     const usdcAddress = new PublicKey(SOLANA_USDC_ADDRESS);
     const userTokenAccount = new PublicKey(process.env.USER_TOKEN_ACCOUNT)
     const remoteTokenAddressHex = process.env.REMOTE_TOKEN_HEX!;
-    const remoteDomain = process.env.REMOTE_DOMAIN!;
+    const remoteDomain = process.env.REMOTE_EVM_DOMAIN!;
     const messageHex = process.env.MESSAGE_HEX!;
     const attestationHex = process.env.ATTESTATION_HEX!;
     const nonce = decodeEventNonceFromMessage(messageHex);
