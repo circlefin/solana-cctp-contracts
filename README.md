@@ -3,7 +3,10 @@
 ## Contents
 
 - [Introduction](#introduction)
-- [Deployments](#deployments)
+- [Developer Documentation](#developer-documentation)
+- [run.sh Script Commands](#runsh-script-commands)
+- [V1 Deployments](#v1-deployments)
+- [V2 Deployments](#v2-deployments)
 - [Deployment guide](#deployment-guide)
 
 ## Introduction
@@ -12,7 +15,9 @@
 
 ## Developer Documentation
 
-To learn more about how to integrate with CCTP, please see our developer documentation [here](https://developers.circle.com/stablecoins/docs/cctp-getting-started).
+To learn more about how to integrate with CCTP, please see our developer documentation: <https://developers.circle.com/stablecoins/docs/cctp-getting-started>.
+
+Please see the [examples directory](examples/) for example scripts interacting with CCTP.
 
 ## run.sh Script Commands
 
@@ -37,7 +42,7 @@ source ./run.sh setup
 ./run.sh test_v2
 ```
 
-## Deployments
+## V1 Deployments
 
 | Devnet               |                                              |
 | -------------------- | -------------------------------------------- |
@@ -49,33 +54,46 @@ source ./run.sh setup
 | MessageTransmitter   | CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd |
 | TokenMessengerMinter | CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3 |
 
-### Program Verification
+### V1 Program Verification
 
 Mainnet on-chain progams can be verified with the following steps:
 
 ```sh
 # Checkout deployed commit
-git checkout 7bec2828bb442e7e22753cedc41b295b681980f2
+git checkout 4b9da71265997e1f29e109837da34e6f783f1a22
 # Build a verifiable build 
-anchor build --verifiable
+anchor build --verifiable --docker-image backpackapp/build:v0.28.0
 # Verify MessageTransmitter
 anchor verify --program-name message_transmitter --provider.cluster mainnet --skip-build CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd
 # Verify TokenMessengerMinter
 anchor verify --program-name token_messenger_minter --provider.cluster mainnet --skip-build CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3
 ```
 
+## V2 Deployments
+
+All CCTP V2 code lives in the `programs/v2` directory.
+
+| Devnet               |                                              |
+| -------------------- | -------------------------------------------- |
+| MessageTransmitterV2   | CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC |
+| TokenMessengerMinterV2 | CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe |
+
+| Mainnet              |       |
+| -------------------- | ----- |
+| MessageTransmitterV2   | Coming Soon |
+| TokenMessengerMinterV2 | Coming Soon |
+
+### V2 Program Verification
+
+Coming Soon
+
 ## Deployment guide
 
 ### Setup Environment
 
 1. Clone the repository from <https://github.com/circlefin/solana-cctp-contracts>.
-2. Install the latest Solana tools from <https://docs.solana.com/cli/install-solana-cli-tools>. If you already have Solana tools, run `solana-install update` to get the latest compatible version.
-3. Install the latest Rust stable from <https://rustup.rs/>. If you already have Rust, run `rustup update` to get the latest version.
-4. Install the latest Anchor framework from <https://www.anchor-lang.com/docs/installation>. If you already have Anchor, run `avm update` to get the latest version.
-
-Rustfmt is used to format the code.
-
-5. Execute `git config core.hooksPath .githooks` to activate pre-commit hooks.
+2. Setup dependencies and CLI tools: `./run.sh setup`
+3. Execute `git config core.hooksPath .githooks` to activate pre-commit hooks.
 
 #### [Optional] Vscode setup
 
@@ -83,16 +101,9 @@ Rustfmt is used to format the code.
 
 ### Build
 
-First, generate new keys for the program addresses with `solana-keygen new -o <PROG_ID_JSON>`. Then, replace the existing program IDs with the newly generated addresses in `Anchor.toml`, `programs/message-transmitter/src/lib.rs`, and `programs/token-messenger-minter/src/lib.rs`.
+To build the program run `./run.sh build_v1` or `./run.sh build_v2` command from the root `solana-cctp-contracts` directory.
 
-Also, ensure the path to your wallet in `Anchor.toml` is correct. Alternatively, when running Anchor deploy or test commands, you can specify your wallet with `--provider.wallet` argument. The wallet's pubkey will be set as an upgrade authority upon initial deployment of the program. It is strongly recommended to use multisig upgrade authority when deploying to the mainnet.
-
-To build the program run `./run.sh build_v1` command from the root `solana-cctp-contracts` directory:
-
-```sh
-cd solana-cctp-contracts
-./run.sh build_v1
-```
+V2 builds will be in `programs/v2/target`
 
 #### Cargo Dependencies
 
@@ -106,7 +117,13 @@ Tests can be started with:
 
 ```sh
 ./run.sh test_v1
-```
+```  
+
+or
+
+```sh
+./run.sh test_v2
+```  
 
 By default, integration tests are executed on a local validator.
 
@@ -123,7 +140,11 @@ anchor idl init --provider.cluster devnet --filepath ./target/idl/token_messenge
 
 ### Initialize
 
-Before the first use of the CCTP programs they must be initialized with the [MessageTransmitter#initialize](#messagetransmitter-module) and [TokenMessenger#initialize](#tokenmessenger-module) instructions.
+Before the first use of the CCTP programs they must be initialized with the 
+[MessageTransmitter#initialize](programs/message-transmitter/src/instructions/initialize.rs) and
+[TokenMessenger#initialize](programs/token-messenger-minter/src/token_messenger/instructions/initialize.rs) instructions.
+The same applies to V2 programs as well: [MessageTransmitterV2#initialize](programs/v2/message-transmitter-v2/src/instructions/initialize.rs) and
+[TokenMessenger#initialize](programs/v2/token-messenger-minter-v2/src/token_messenger_v2/instructions/initialize.rs).
 
 ---
 
