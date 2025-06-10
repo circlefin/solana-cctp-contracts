@@ -1,0 +1,12 @@
+[programs.localnet]
+message_transmitter = "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd"
+token_messenger_minter = "CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3"
+
+[programs.devnet]
+message_transmitter = "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd"
+token_messenger_minter = "CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3"
+message_transmitter_v2 = "CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC"
+token_messenger_minter_v2 = "CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe"
+
+[provider]
+cluster = "devnet"

@@ -1,0 +1,34 @@
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+message_transmitter_v2 = "CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC"
+token_messenger_minter_v2 = "CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe"
+
+[programs.devnet]
+message_transmitter_v2 = "CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC"
+token_messenger_minter_v2 = "CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./../../tsconfig.json -t 1000000 tests/**/*tests.ts"
+
+[workspace]
+members = [
+    "message-transmitter-v2",
+    "token-messenger-minter-v2",
+]
+
+[toolchain]
+anchor_version = "0.31.0" # `anchor-cli` version to use
+solana_version = "2.1.0" # `solana-cli` version to use
+
+[test]
+upgradeable = true

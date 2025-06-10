@@ -23,3 +23,13 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[workspace]
+members = [
+    "programs/message-transmitter",
+    "programs/token-messenger-minter",
+]
+
+[toolchain]
+anchor_version = "0.28.0" # `anchor-cli` version to use
+solana_version = "1.18.26" # `solana-cli` version to use

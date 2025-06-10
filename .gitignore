@@ -2,8 +2,14 @@
 .anchor
 .DS_Store
 target
+!examples/target
 **/*.rs.bk
 node_modules
 test-ledger
 .yarn/
 .yarnrc.yml
+!vendor/**/src/target
+.idea/
+.anchor-localnet
+.env
+devnetUser.json

@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2024, Circle Internet Financial LTD All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey, Connection } from "@solana/web3.js";
 
@@ -46,6 +64,7 @@ export async function readEvents(
   txSignature: string,
   programs
 ) {
+  await new Promise(resolve => setTimeout(resolve, 1000));
   await connection.confirmTransaction(txSignature);
   const config = { commitment: "confirmed" } as const;
   const txResult = await connection.getTransaction(txSignature, config);
@@ -102,4 +121,29 @@ export function getEvent(events, program: PublicKey, eventName: string) {
     }
   }
   throw new Error("Event " + eventName + " not found");
+}
+
+export function generateUsedNoncesCollisions(numCollisions = 500) {
+  const set = new Set();
+  const map = {};
+  const collisions = [];
+
+  // source domains 0-50
+  for (let i = 0; i < 50; i++) {
+    // nonces 1-200M. Increment by 6400 since only the first nonce is in the seed
+    for (let j = 1; j < 20000000; j+=6400) {
+      if (set.has(`${i}${j}`)) {
+        // Collision
+        collisions.push({nonce1: map[`${i}${j}`].j, domain1: map[`${i}${j}`].i, nonce2: j, domain2: i});
+      } else {
+        // No collision, add to the set and map
+        set.add(`${i}${j}`);
+        map[`${i}${j}`] = {i, j}
+      }
+      if (collisions.length >= numCollisions) {
+        return collisions;
+      }
+    }
+  } 
+  return collisions;
 }
