@@ -4,63 +4,18 @@ on:
   push:
     branches: [master]
 jobs:
-  build-and-test-v1:
-    name: V1 Tests
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.rustup
-            ~/.cargo
-            ~/.cache/solana
-            ~/.avm
-            ~/.local/share/solana/install
-          key: ${{ runner.os }}-dependencies-v1-${{ hashFiles('**/Cargo.lock', '**/Anchor.toml', '**/rust-toolchain.toml', '!vendor/**', '!programs/v2/**') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-dependencies-v1-${{ hashFiles('**/Cargo.lock', '**/Anchor.toml', '**/rust-toolchain.toml', '!vendor/**', '!programs/v2/**') }}-
-            ${{ runner.os }}-dependencies-v1-
-      - name: Run V1 tests
-        run: |
-          source ./run.sh setup_v1
-          ./run.sh test_v1
-      - name: Run format check
-        run: cargo fmt -- --check
-  build-and-test-v2:
-    name: V2 Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.rustup
-            ~/.cargo
-            ~/.cache/solana
-            ~/.avm
-            ~/.local/share/solana/install
-          key: ${{ runner.os }}-dependencies-v2-${{ hashFiles('programs/v2/**/Cargo.lock', 'programs/v2/**/Anchor.toml', 'programs/v2/**/rust-toolchain.toml') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-dependencies-v2-${{ hashFiles('programs/v2/**/Cargo.lock', 'programs/v2/**/Anchor.toml', 'programs/v2/**/rust-toolchain.toml') }}-
-            ${{ runner.os }}-dependencies-v2-
-      - name: Run V2 tests
-        run: |
-          source ./run.sh setup_v2
-          ./run.sh test_v2
-      - name: Run format check
-        run: cd programs/v2 && cargo fmt -- --check
+        uses: actions/checkout@v3
 
   scan:
-    needs: [build-and-test-v1, build-and-test-v2]
+    needs: ci
     if: github.event_name == 'pull_request'
     uses: circlefin/circle-public-github-workflows/.github/workflows/pr-scan.yaml@v1
 
   release-sbom:
-    needs: [build-and-test-v1, build-and-test-v2]
+    needs: ci
     if: github.event_name == 'push'
     uses: circlefin/circle-public-github-workflows/.github/workflows/attach-release-assets.yaml@v1

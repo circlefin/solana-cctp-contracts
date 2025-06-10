@@ -14,3 +14,7 @@ pkg:npm/string-width-cjs
 pkg:npm/strip-ansi-cjs
 pkg:npm/wrap-ansi-cjs
 pkg:npm/bignumber.js
+pkg:npm/rpc-websockets
+pkg:npm/ethereumjs-util
+pkg:npm/rlp
+pkg:npm/rpc-websockets
