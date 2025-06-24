@@ -80,12 +80,25 @@ All CCTP V2 code lives in the `programs/v2` directory.
 
 | Mainnet              |       |
 | -------------------- | ----- |
-| MessageTransmitterV2   | Coming Soon |
-| TokenMessengerMinterV2 | Coming Soon |
+| MessageTransmitterV2   | CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC |
+| TokenMessengerMinterV2 | CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe |
 
 ### V2 Program Verification
 
-Coming Soon
+Mainnet on-chain progams can be verified with the following steps:
+
+```sh
+# Checkout deployed commit
+git checkout b37d577fc1dc317ce9bc0316c5063afe38744ce3
+# Navigate to V2 directory
+cd programs/v2
+# Build a verifiable build 
+anchor build --verifiable 
+# Verify MessageTransmitter
+anchor verify --program-name message_transmitter_v2 --provider.cluster mainnet --skip-build CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC
+# Verify TokenMessengerMinter
+anchor verify --program-name token_messenger_minter_v2 --provider.cluster mainnet --skip-build CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe
+```
 
 ## Deployment guide
 
