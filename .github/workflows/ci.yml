@@ -5,7 +5,7 @@ on:
     branches: [master]
 jobs:
   ci:
-    runs-on: small-spot
+    runs-on: small-dind-spot
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
