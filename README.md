@@ -15,7 +15,7 @@
 
 ## Developer Documentation
 
-To learn more about how to integrate with CCTP, please see our developer documentation: <https://developers.circle.com/stablecoins/docs/cctp-getting-started>.
+To learn more about how to integrate with CCTP, please see our developer documentation: <https://developers.circle.com/stablecoins/cctp-getting-started>.
 
 Please see the [examples directory](examples/) for example scripts interacting with CCTP.
 
