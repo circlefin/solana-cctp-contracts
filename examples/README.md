@@ -2,7 +2,7 @@
 
 This directory provides example scripts for calling depositForBurn and receiveMessage on Solana Devnet.
 
-For more information see our [developer documentation](https://developers.circle.com/stablecoins/docs/cctp-getting-started).
+For more information see our [developer documentation](https://developers.circle.com/cctp).
 
 ## Prerequisites
 
